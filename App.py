@@ -40,91 +40,113 @@ def detectar_genero(texto):
     else:
         return "reggaeton"
 
-# ---------------- MIDI INTELIGENTE ----------------
+# ---------------- GENERADOR MIDI PRO ----------------
 def generar_midi(genero):
     midi = MIDIFile(4)
 
     # -------- CONFIG POR GENERO --------
     if genero == "trap":
         tempo = 70
-        acordes = [[57,60,64],[55,59,62],[53,57,60],[52,55,59]]
     elif genero == "lofi":
         tempo = 80
-        acordes = [[57,60,64],[53,57,60],[52,55,59],[55,59,62]]
     elif genero == "rock":
         tempo = 110
-        acordes = [[57,60,64],[55,59,62],[53,57,60],[52,55,59]]
-    else:  # reggaeton
+    else:
         tempo = 95
-        acordes = [[57,60,64],[53,57,60],[55,59,62],[52,55,59]]
 
     for track in range(4):
         midi.addTempo(track, 0, tempo)
 
+    # 🎸 INSTRUMENTOS
+    midi.addProgramChange(0, 0, 0, 0)   # Piano
+    midi.addProgramChange(1, 0, 0, 34)  # Bajo
+    midi.addProgramChange(3, 0, 0, 29)  # Guitarra eléctrica
+
     # -------- ACORDES --------
+    acordes = [
+        [57, 60, 64],  # Am
+        [53, 57, 60],  # F
+        [55, 59, 62],  # G
+        [52, 55, 59]   # Em
+    ]
+
+    progresion = acordes * 4  # 16 compases
+
+    # 🎹 ACORDES
     time = 0
-    for acorde in acordes:
+    for acorde in progresion:
         for nota in acorde:
-            midi.addNote(0, 0, nota, time, 4, 80)
+            midi.addNote(0, 0, nota, time, 4, 70)
         time += 4
 
-    # -------- BAJO --------
-    roots = [a[0] for a in acordes]
+    # 🎸 BAJO
     time = 0
+    for acorde in progresion:
+        root = acorde[0]
 
-    for root in roots:
         midi.addNote(1, 0, root, time, 1, 100)
-        midi.addNote(1, 0, root, time+1.5, 0.5, 90)
-        midi.addNote(1, 0, root, time+2, 1, 100)
-        midi.addNote(1, 0, root, time+3, 1, 100)
+        midi.addNote(1, 0, root, time + 1.5, 0.5, 90)
+        midi.addNote(1, 0, root, time + 2, 1, 100)
+        midi.addNote(1, 0, root, time + 3, 1, 100)
+
         time += 4
 
-    # -------- BATERÍA --------
+    # 🥁 BATERÍA
     time = 0
-    for _ in range(4):
+    for _ in range(16):
 
         if genero == "trap":
             midi.addNote(2, 9, 36, time, 1, 110)
-            midi.addNote(2, 9, 38, time+2, 1, 110)
+            midi.addNote(2, 9, 38, time + 2, 1, 110)
 
-            # hi-hats rápidos
             for i in range(8):
-                midi.addNote(2, 9, 42, time + i*0.5, 0.25, 70)
+                midi.addNote(2, 9, 42, time + i * 0.5, 0.25, 70)
 
         elif genero == "rock":
             midi.addNote(2, 9, 36, time, 1, 110)
-            midi.addNote(2, 9, 38, time+2, 1, 110)
+            midi.addNote(2, 9, 38, time + 2, 1, 110)
 
             for i in range(4):
                 midi.addNote(2, 9, 42, time + i, 0.5, 80)
 
         elif genero == "lofi":
             midi.addNote(2, 9, 36, time, 1, 80)
-            midi.addNote(2, 9, 38, time+2, 1, 70)
+            midi.addNote(2, 9, 38, time + 2, 1, 70)
 
             for i in range(4):
                 midi.addNote(2, 9, 42, time + i, 0.5, 50)
 
         else:  # reggaeton
             midi.addNote(2, 9, 36, time, 1, 110)
-            midi.addNote(2, 9, 38, time+1, 1, 110)
-            midi.addNote(2, 9, 36, time+2, 1, 110)
-            midi.addNote(2, 9, 38, time+3, 1, 110)
+            midi.addNote(2, 9, 38, time + 1, 1, 110)
+            midi.addNote(2, 9, 36, time + 2, 1, 110)
+            midi.addNote(2, 9, 38, time + 3, 1, 110)
 
             for i in range(4):
                 midi.addNote(2, 9, 42, time + i + 0.5, 0.5, 80)
 
         time += 4
 
-    # -------- GUITARRA --------
+    # 🎸 GUITARRA (rasgueo realista)
     time = 0
-    for acorde in acordes:
+    for acorde in progresion:
         for beat in range(4):
+            delay = 0
             for nota in acorde:
-                midi.addNote(3, 0, nota+12, time+beat, 0.5, 70)
+                midi.addNote(3, 0, nota + 12, time + beat + delay, 0.6, 75)
+                delay += 0.08
         time += 4
 
-    # -------- EXPORTAR --------
+    # 🎼 MELODÍA
+    time = 0
+    escala = [60, 62, 64, 65, 67, 69, 71]
+
+    for i in range(64):
+        nota = escala[i % len(escala)]
+        midi.addNote(0, 0, nota + 12, time, 0.5, 60)
+        time += 0.5
+
+    # EXPORTAR
     buffer = io.BytesIO()
     midi.writeFile(buffer)
     buffer.seek(0)
@@ -141,17 +163,17 @@ if mensaje:
     st.chat_message("user").write(mensaje)
     st.session_state.chat.append({"role": "user", "content": mensaje})
 
+    # 🎧 MODO DJ
     if mensaje.lower().startswith("/dj"):
 
         genero = detectar_genero(mensaje)
 
         prompt = f"""
 Eres DJ Cortana 🎧
-Género detectado: {genero}
+Género: {genero}
 
 Genera:
-- Nombre
-- Estilo
+- Nombre de canción
 - Descripción del beat
 """
 
@@ -175,6 +197,7 @@ Genera:
             mime="audio/midi"
         )
 
+    # 💬 CHAT NORMAL
     else:
         try:
             respuesta = client.chat.completions.create(
