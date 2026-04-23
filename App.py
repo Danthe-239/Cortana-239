@@ -9,13 +9,8 @@ st.set_page_config(page_title="Cortana IA", page_icon="🤖")
 st.title("🤖 Cortana IA")
 
 # ---------------- API KEY ----------------
-api_key = None
+api_key = os.getenv("GROQ_API_KEY")
 
-# Local (tu PC)
-if "GROQ_API_KEY" in os.environ:
-    api_key = os.environ["GROQ_API_KEY"]
-
-# Streamlit Cloud
 if not api_key:
     try:
         api_key = st.secrets["GROQ_API_KEY"]
@@ -32,15 +27,15 @@ client = Groq(api_key=api_key)
 if "chat" not in st.session_state:
     st.session_state.chat = []
 
-# ---------------- FUNCIÓN MIDI PRO ----------------
+# ---------------- MIDI PRO ----------------
 def generar_midi():
-    midi = MIDIFile(2)
+    midi = MIDIFile(4)  # 4 pistas
 
     tempo = 95
-    midi.addTempo(0, 0, tempo)
-    midi.addTempo(1, 0, tempo)
+    for track in range(4):
+        midi.addTempo(track, 0, tempo)
 
-    # Acordes (Am - F - G - Em)
+    # ---------------- ACORDES ----------------
     acordes = [
         [57, 60, 64],  # Am
         [53, 57, 60],  # F
@@ -49,20 +44,18 @@ def generar_midi():
     ]
 
     time = 0
-
-    # 🎹 Pista de acordes
     for i in range(4):
-        acorde = acordes[i % 4]
+        acorde = acordes[i]
         for nota in acorde:
             midi.addNote(0, 0, nota, time, 4, 80)
         time += 4
 
-    # 🎸 Bajo (ritmo tipo reggaeton)
+    # ---------------- BAJO ----------------
     roots = [57, 53, 55, 52]
     time = 0
 
     for i in range(4):
-        root = roots[i % 4]
+        root = roots[i]
 
         midi.addNote(1, 0, root, time, 1, 100)
         midi.addNote(1, 0, root, time + 1.5, 0.5, 90)
@@ -71,6 +64,35 @@ def generar_midi():
 
         time += 4
 
+    # ---------------- BATERÍA (canal 9) ----------------
+    time = 0
+    for bar in range(4):
+        # Kick (36), Snare (38), Hi-hat (42)
+
+        midi.addNote(2, 9, 36, time, 1, 110)        # kick
+        midi.addNote(2, 9, 42, time + 0.5, 0.5, 80) # hat
+        midi.addNote(2, 9, 38, time + 1, 1, 110)    # snare
+        midi.addNote(2, 9, 42, time + 1.5, 0.5, 80)
+
+        midi.addNote(2, 9, 36, time + 2, 1, 110)
+        midi.addNote(2, 9, 42, time + 2.5, 0.5, 80)
+        midi.addNote(2, 9, 38, time + 3, 1, 110)
+        midi.addNote(2, 9, 42, time + 3.5, 0.5, 80)
+
+        time += 4
+
+    # ---------------- GUITARRA ELÉCTRICA ----------------
+    time = 0
+    for i in range(4):
+        acorde = acordes[i]
+
+        for beat in range(4):
+            for nota in acorde:
+                midi.addNote(3, 0, nota + 12, time + beat, 0.5, 70)
+
+        time += 4
+
+    # ---------------- EXPORTAR ----------------
     buffer = io.BytesIO()
     midi.writeFile(buffer)
     buffer.seek(0)
@@ -88,17 +110,18 @@ if mensaje:
     st.chat_message("user").write(mensaje)
     st.session_state.chat.append({"role": "user", "content": mensaje})
 
-    # ---------------- MODO DJ ----------------
+    # 🎧 MODO DJ
     if mensaje.lower().startswith("/dj"):
 
         prompt = f"""
 Eres DJ Cortana 🎧
+Crea un beat profesional.
 
-Genera:
-- Nombre de la canción
-- Estilo musical
+Incluye:
+- Nombre
+- Estilo
 - Acordes
-- Idea del beat
+- Idea musical
 
 Mensaje: {mensaje}
 """
@@ -108,39 +131,31 @@ Mensaje: {mensaje}
                 model="llama-3.1-8b-instant",
                 messages=[{"role": "user", "content": prompt}]
             )
-
             texto = respuesta.choices[0].message.content
-
         except Exception as e:
             texto = f"ERROR: {str(e)}"
 
         st.chat_message("assistant").write(texto)
         st.session_state.chat.append({"role": "assistant", "content": texto})
 
-        # 🎵 GENERAR MIDI
-        try:
-            midi_file = generar_midi()
+        # 🎵 MIDI
+        midi_file = generar_midi()
 
-            st.download_button(
-                label="⬇️ Descargar Beat MIDI",
-                data=midi_file,
-                file_name="dj_cortana.mid",
-                mime="audio/midi"
-            )
+        st.download_button(
+            "⬇️ Descargar Beat MIDI",
+            data=midi_file,
+            file_name="dj_cortana_pro.mid",
+            mime="audio/midi"
+        )
 
-        except Exception as e:
-            st.error(f"Error generando MIDI: {str(e)}")
-
-    # ---------------- CHAT NORMAL ----------------
+    # 💬 CHAT NORMAL
     else:
         try:
             respuesta = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=st.session_state.chat
             )
-
             texto = respuesta.choices[0].message.content
-
         except Exception as e:
             texto = f"ERROR: {str(e)}"
 
