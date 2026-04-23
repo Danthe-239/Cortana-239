@@ -1,9 +1,8 @@
 import streamlit as st
 from groq import Groq
+import os
 from midiutil import MIDIFile
 import io
-import random
-import os
 
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="Cortana IA", page_icon="🤖")
@@ -12,11 +11,11 @@ st.title("🤖 Cortana IA")
 # ---------------- API KEY ----------------
 api_key = None
 
-# Para local (tu PC)
+# Local (tu PC)
 if "GROQ_API_KEY" in os.environ:
     api_key = os.environ["GROQ_API_KEY"]
 
-# Para Streamlit Cloud
+# Streamlit Cloud
 if not api_key:
     try:
         api_key = st.secrets["GROQ_API_KEY"]
@@ -33,25 +32,49 @@ client = Groq(api_key=api_key)
 if "chat" not in st.session_state:
     st.session_state.chat = []
 
-# ---------------- FUNCIÓN MIDI ----------------
+# ---------------- FUNCIÓN MIDI PRO ----------------
 def generar_midi():
-    midi = MIDIFile(1)
-    track = 0
+    midi = MIDIFile(2)
+
+    tempo = 95
+    midi.addTempo(0, 0, tempo)
+    midi.addTempo(1, 0, tempo)
+
+    # Acordes (Am - F - G - Em)
+    acordes = [
+        [57, 60, 64],  # Am
+        [53, 57, 60],  # F
+        [55, 59, 62],  # G
+        [52, 55, 59]   # Em
+    ]
+
     time = 0
-    midi.addTrackName(track, time, "DJ Cortana Beat")
-    midi.addTempo(track, time, 95)  # ritmo más tipo reggaeton/lento
 
-    # Escala simple
-    notas = [60, 62, 64, 65, 67, 69, 71]
+    # 🎹 Pista de acordes
+    for i in range(4):
+        acorde = acordes[i % 4]
+        for nota in acorde:
+            midi.addNote(0, 0, nota, time, 4, 80)
+        time += 4
 
-    # Melodía
-    for i in range(16):
-        nota = random.choice(notas)
-        midi.addNote(track, 0, nota, i, 1, 100)
+    # 🎸 Bajo (ritmo tipo reggaeton)
+    roots = [57, 53, 55, 52]
+    time = 0
+
+    for i in range(4):
+        root = roots[i % 4]
+
+        midi.addNote(1, 0, root, time, 1, 100)
+        midi.addNote(1, 0, root, time + 1.5, 0.5, 90)
+        midi.addNote(1, 0, root, time + 2, 1, 100)
+        midi.addNote(1, 0, root, time + 3, 1, 100)
+
+        time += 4
 
     buffer = io.BytesIO()
     midi.writeFile(buffer)
     buffer.seek(0)
+
     return buffer
 
 # ---------------- MOSTRAR CHAT ----------------
@@ -70,7 +93,6 @@ if mensaje:
 
         prompt = f"""
 Eres DJ Cortana 🎧
-Creadora de beats.
 
 Genera:
 - Nombre de la canción
@@ -78,7 +100,7 @@ Genera:
 - Acordes
 - Idea del beat
 
-Mensaje del usuario: {mensaje}
+Mensaje: {mensaje}
 """
 
         try:
@@ -95,63 +117,20 @@ Mensaje del usuario: {mensaje}
         st.chat_message("assistant").write(texto)
         st.session_state.chat.append({"role": "assistant", "content": texto})
 
-        # 🎵 Generar MIDI
-       def generar_midi():
-    midi = MIDIFile(2)  # 2 pistas: acordes + bajo
+        # 🎵 GENERAR MIDI
+        try:
+            midi_file = generar_midi()
 
-    tempo = 95
-    midi.addTempo(0, 0, tempo)
-    midi.addTempo(1, 0, tempo)
+            st.download_button(
+                label="⬇️ Descargar Beat MIDI",
+                data=midi_file,
+                file_name="dj_cortana.mid",
+                mime="audio/midi"
+            )
 
-    # ---------------- ACORDES ----------------
-    # Notas MIDI:
-    # Am = A C E → 57 60 64
-    # F  = F A C → 53 57 60
-    # G  = G B D → 55 59 62
-    # Em = E G B → 52 55 59
+        except Exception as e:
+            st.error(f"Error generando MIDI: {str(e)}")
 
-    acordes = [
-        [57, 60, 64],  # Am
-        [53, 57, 60],  # F
-        [55, 59, 62],  # G
-        [52, 55, 59]   # Em
-    ]
-
-    time = 0
-
-    for i in range(4):  # 4 compases
-        acorde = acordes[i % len(acordes)]
-
-        # tocar acorde completo (3 notas)
-        for nota in acorde:
-            midi.addNote(0, 0, nota, time, 4, 80)
-
-        time += 4
-
-    # ---------------- BAJO ----------------
-    # toca la raíz del acorde (más grave)
-    time = 0
-
-    roots = [57, 53, 55, 52]
-
-    for i in range(4):
-        root = roots[i % len(roots)]
-
-        # patrón tipo reggaeton (dem bow básico)
-        midi.addNote(1, 0, root, time, 1, 100)
-        midi.addNote(1, 0, root, time + 1.5, 0.5, 90)
-        midi.addNote(1, 0, root, time + 2, 1, 100)
-        midi.addNote(1, 0, root, time + 3, 1, 100)
-
-        time += 4
-
-    # ---------------- EXPORTAR ----------------
-    import io
-    buffer = io.BytesIO()
-    midi.writeFile(buffer)
-    buffer.seek(0)
-
-    return buffer
     # ---------------- CHAT NORMAL ----------------
     else:
         try:
