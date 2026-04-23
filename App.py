@@ -96,19 +96,62 @@ Mensaje del usuario: {mensaje}
         st.session_state.chat.append({"role": "assistant", "content": texto})
 
         # 🎵 Generar MIDI
-        try:
-            midi_file = generar_midi()
+       def generar_midi():
+    midi = MIDIFile(2)  # 2 pistas: acordes + bajo
 
-            st.download_button(
-                label="⬇️ Descargar Beat MIDI",
-                data=midi_file,
-                file_name="dj_cortana.mid",
-                mime="audio/midi"
-            )
+    tempo = 95
+    midi.addTempo(0, 0, tempo)
+    midi.addTempo(1, 0, tempo)
 
-        except Exception as e:
-            st.error(f"Error generando MIDI: {str(e)}")
+    # ---------------- ACORDES ----------------
+    # Notas MIDI:
+    # Am = A C E → 57 60 64
+    # F  = F A C → 53 57 60
+    # G  = G B D → 55 59 62
+    # Em = E G B → 52 55 59
 
+    acordes = [
+        [57, 60, 64],  # Am
+        [53, 57, 60],  # F
+        [55, 59, 62],  # G
+        [52, 55, 59]   # Em
+    ]
+
+    time = 0
+
+    for i in range(4):  # 4 compases
+        acorde = acordes[i % len(acordes)]
+
+        # tocar acorde completo (3 notas)
+        for nota in acorde:
+            midi.addNote(0, 0, nota, time, 4, 80)
+
+        time += 4
+
+    # ---------------- BAJO ----------------
+    # toca la raíz del acorde (más grave)
+    time = 0
+
+    roots = [57, 53, 55, 52]
+
+    for i in range(4):
+        root = roots[i % len(roots)]
+
+        # patrón tipo reggaeton (dem bow básico)
+        midi.addNote(1, 0, root, time, 1, 100)
+        midi.addNote(1, 0, root, time + 1.5, 0.5, 90)
+        midi.addNote(1, 0, root, time + 2, 1, 100)
+        midi.addNote(1, 0, root, time + 3, 1, 100)
+
+        time += 4
+
+    # ---------------- EXPORTAR ----------------
+    import io
+    buffer = io.BytesIO()
+    midi.writeFile(buffer)
+    buffer.seek(0)
+
+    return buffer
     # ---------------- CHAT NORMAL ----------------
     else:
         try:
