@@ -1,5 +1,3 @@
 streamlit
 groq
 midiutil
-fluidsynth
-pydub
