@@ -35,42 +35,78 @@ def responder(mensaje):
     except Exception as e:
         return f"❌ Error IA: {str(e)}"
 
-# ---------------- AUDIO ENGINE ----------------
+# ---------------- UTIL ----------------
 def nota_a_freq(nota):
     return 440 * (2 ** ((nota - 69) / 12))
 
-def generar_audio_avanzado(progresion, duracion=10, sample_rate=44100):
+# ---------------- MELODÍA REAL ----------------
+def generar_melodia(escala, longitud=40):
+    melodia = []
+    nota_actual = random.choice(escala)
 
-    t = np.linspace(0, duracion, int(sample_rate * duracion))
-    audio = np.zeros_like(t)
+    for _ in range(longitud):
 
-    tiempo_por_acorde = duracion / len(progresion)
+        movimiento = random.choice([-3, -2, -1, 0, 1, 2, 3])
 
-    def onda(tipo, freq, t):
-        if tipo == "sine":
-            return np.sin(2 * np.pi * freq * t)
-        elif tipo == "square":
-            return np.sign(np.sin(2 * np.pi * freq * t))
-        elif tipo == "saw":
-            return 2 * (t * freq - np.floor(0.5 + t * freq))
-        else:
-            return np.sin(2 * np.pi * freq * t)
+        idx = escala.index(nota_actual)
+        nuevo_idx = max(0, min(len(escala) - 1, idx + movimiento))
+        nota_actual = escala[nuevo_idx]
+
+        duracion = random.choice([0.5, 1, 1.5, 2])
+
+        melodia.append((nota_actual, duracion))
+
+    return melodia
+
+# ---------------- AUDIO ENGINE ----------------
+def generar_audio(progresion, escala, duracion_total=10, sample_rate=44100):
+
+    t_total = np.linspace(0, duracion_total, int(sample_rate * duracion_total))
+    audio = np.zeros_like(t_total)
 
     tipo_onda = random.choice(["sine", "square", "saw"])
 
+    def onda(freq, t):
+        if tipo_onda == "sine":
+            return np.sin(2 * np.pi * freq * t)
+        elif tipo_onda == "square":
+            return np.sign(np.sin(2 * np.pi * freq * t))
+        elif tipo_onda == "saw":
+            return 2 * (t * freq - np.floor(0.5 + t * freq))
+
+    # 🎼 melodía principal
+    melodia = generar_melodia(escala)
+
+    tiempo = 0
+    for nota, dur in melodia:
+
+        inicio = int(tiempo * sample_rate)
+        fin = int((tiempo + dur) * sample_rate)
+
+        if fin > len(t_total):
+            break
+
+        freq = nota_a_freq(nota)
+        t_seg = t_total[inicio:fin]
+
+        audio[inicio:fin] += onda(freq, t_seg) * random.uniform(0.2, 0.5)
+
+        tiempo += dur
+
+    # 🎬 acordes fondo
+    tiempo_por_acorde = duracion_total / len(progresion)
+
     for i, acorde in enumerate(progresion):
         inicio = int(i * tiempo_por_acorde * sample_rate)
-        fin = int((i+1) * tiempo_por_acorde * sample_rate)
+        fin = int((i + 1) * tiempo_por_acorde * sample_rate)
 
         for nota in acorde:
             freq = nota_a_freq(nota)
-            segmento_t = t[inicio:fin]
+            t_seg = t_total[inicio:fin]
 
-            sonido = onda(tipo_onda, freq, segmento_t)
-            volumen = random.uniform(0.2, 0.5)
+            audio[inicio:fin] += np.sin(2 * np.pi * freq * t_seg) * 0.15
 
-            audio[inicio:fin] += sonido * volumen
-
+    # normalizar
     audio = audio / np.max(np.abs(audio))
 
     buffer = io.BytesIO()
@@ -92,13 +128,11 @@ def generar_musica(genero, modo):
 
     escala = escalas.get(genero, [60, 62, 64, 67, 69])
 
-    # 🎭 Modos
     if modo == "dark":
         escala = [n - 2 for n in escala]
     elif modo == "happy":
         escala = [n + 2 for n in escala]
 
-    # 🎼 Progresiones variadas
     progresiones = [
         [
             [escala[0], escala[2], escala[4]],
@@ -123,14 +157,13 @@ def generar_musica(genero, modo):
     progresion = random.choice(progresiones)
     duracion = random.choice([8, 10, 12])
 
-    return generar_audio_avanzado(progresion, duracion)
+    return generar_audio(progresion, escala, duracion)
 
 # ---------------- UI ----------------
 mensaje = st.text_input("💬 Escribe o usa /dj")
 
 if st.button("Enviar 🚀") and mensaje:
 
-    # 🎧 MODO DJ
     if mensaje.lower().startswith("/dj"):
 
         partes = mensaje.lower().split()
@@ -170,7 +203,6 @@ if st.button("Enviar 🚀") and mensaje:
 
             st.success("🎼 Beat generado")
 
-            # ▶️ REPRODUCTOR
             st.audio(audio, format="audio/wav")
 
             st.download_button(
@@ -180,7 +212,6 @@ if st.button("Enviar 🚀") and mensaje:
                 mime="audio/wav"
             )
 
-    # 🤖 CHAT
     else:
         if "danthe" in mensaje.lower():
             st.markdown("👑 Danthe es mi creador.")
