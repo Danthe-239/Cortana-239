@@ -45,30 +45,38 @@ def generar_midi(genero, modo):
     midi.addProgramChange(2, 0, 0, 0)   # piano
     midi.addProgramChange(3, 9, 0, 0)   # batería
 
-    tempo = random.randint(80, 140)
+    # 🎬 Cinemática
+    if genero == "cinematica":
+        escala = [48, 50, 52, 55, 57]
+        tempo = random.randint(60, 90)
+    else:
+        escala = [60, 62, 64, 67, 69]
+        tempo = random.randint(80, 140)
 
+    # ⚡ modos
     if modo == "fast":
         tempo += 20
     elif modo == "slow":
         tempo -= 20
+    elif modo == "dark":
+        escala = [n - 2 for n in escala]
+        if genero == "cinematica":
+            escala = [n - 3 for n in escala]
+    elif modo == "happy":
+        escala = [n + 2 for n in escala]
 
     for t in range(4):
         midi.addTempo(t, 0, tempo)
 
-    # 🎼 Escala base
-    escala = [60, 62, 64, 67, 69]
-
-    if modo == "dark":
-        escala = [n - 2 for n in escala]
-    elif modo == "happy":
-        escala = [n + 2 for n in escala]
-
-    # 🎵 Motivo musical
+    # 🎵 motivo musical
     motivo = random.sample(escala, 3)
+
+    # 🎼 duración
+    duracion = 64 if genero == "cinematica" else 32
 
     # 🎹 MELODÍA
     time = 0
-    for i in range(32):
+    for i in range(duracion):
 
         if i % 4 == 0:
             motivo = random.sample(escala, 3)
@@ -81,21 +89,21 @@ def generar_midi(genero, modo):
 
     # 🎸 GUITARRA
     time = 0
-    for i in range(32):
+    for i in range(duracion):
         nota = random.choice(motivo)
         midi.addNote(0, 0, nota, time, 2, 80)
         time += 2
 
     # 🎸 BAJO
     time = 0
-    for i in range(32):
+    for i in range(duracion):
         nota = motivo[0] - 24
         midi.addNote(1, 0, nota, time, 1, 100)
         time += 1
 
     # 🥁 DRUMS
     time = 0
-    for i in range(32):
+    for i in range(duracion):
 
         midi.addNote(3, 9, 36, time, 0.5, 100)
 
@@ -127,12 +135,14 @@ if st.button("Enviar 🚀") and mensaje:
             st.markdown("""
 ### 🎧 Comandos DJ
 
+🎵 Géneros:
 /dj trap  
 /dj reggaeton  
 /dj drill  
 /dj lofi  
 /dj rock  
 /dj electronic  
+/dj cinematica  
 
 ⚡ Modos:
 /dj fast  
@@ -142,7 +152,7 @@ if st.button("Enviar 🚀") and mensaje:
 """)
 
         else:
-            generos = ["trap", "reggaeton", "drill", "lofi", "rock", "electronic"]
+            generos = ["trap", "reggaeton", "drill", "lofi", "rock", "electronic", "cinematica"]
 
             genero = next((g for g in generos if g in partes), random.choice(generos))
 
