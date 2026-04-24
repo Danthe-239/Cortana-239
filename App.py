@@ -3,10 +3,12 @@ from groq import Groq
 import random
 from midiutil import MIDIFile
 import io
-import base64
 
-# 🔑 API
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+# 🔐 API segura
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except:
+    client = None
 
 st.set_page_config(page_title="Cortana IA", page_icon="🤖")
 st.title("🤖 Cortana IA - Web")
@@ -15,38 +17,35 @@ st.title("🤖 Cortana IA - Web")
 if "historial" not in st.session_state:
     st.session_state.historial = []
 
-# ---------------- CHAT ----------------
+# ---------------- CHAT IA ----------------
 def responder(mensaje):
-    modelos = ["llama-3.1-8b-instant"]
+    if client is None:
+        return "❌ API Key no configurada"
 
-    for modelo in modelos:
-        try:
-            r = client.chat.completions.create(
-                model=modelo,
-                messages=[
-                    {"role": "system", "content": "Eres Cortana, una IA amigable con emojis."},
-                    {"role": "user", "content": mensaje}
-                ]
-            )
-            return r.choices[0].message.content
-        except:
-            continue
+    try:
+        r = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "Eres Cortana, una IA amigable, creativa y útil."},
+                {"role": "user", "content": mensaje}
+            ]
+        )
+        return r.choices[0].message.content
+    except Exception as e:
+        return f"❌ Error IA: {str(e)}"
 
-    return "❌ Error en IA"
-
-# ---------------- GENERADOR PRO ----------------
+# ---------------- GENERADOR MUSICAL PRO ----------------
 def generar_midi(genero, modo):
 
     midi = MIDIFile(4)
 
-    # 🎸 INSTRUMENTOS (program change)
-    midi.addProgramChange(0, 0, 0, 30)  # guitarra eléctrica
+    # 🎸 Instrumentos
+    midi.addProgramChange(0, 0, 0, 30)  # guitarra
     midi.addProgramChange(1, 0, 0, 32)  # bajo
-    midi.addProgramChange(2, 0, 0, 0)   # piano/melodía
+    midi.addProgramChange(2, 0, 0, 0)   # piano
     midi.addProgramChange(3, 9, 0, 0)   # batería
 
-    # 🎧 TEMPO VARIABLE
-    tempo = random.randint(70, 150)
+    tempo = random.randint(80, 140)
 
     if modo == "fast":
         tempo += 20
@@ -56,58 +55,55 @@ def generar_midi(genero, modo):
     for t in range(4):
         midi.addTempo(t, 0, tempo)
 
-    # 🎼 ESCALAS DIFERENTES (para variar sonido)
-    escalas = [
-        [60, 62, 64, 67, 69],
-        [60, 63, 65, 67, 70],
-        [60, 61, 63, 66, 68],
-        [60, 62, 65, 67, 71]
-    ]
-
-    escala = random.choice(escalas)
+    # 🎼 Escala base
+    escala = [60, 62, 64, 67, 69]
 
     if modo == "dark":
         escala = [n - 2 for n in escala]
     elif modo == "happy":
         escala = [n + 2 for n in escala]
 
-    duracion = 64
+    # 🎵 Motivo musical
+    motivo = random.sample(escala, 3)
 
-    # 🎸 GUITARRA (arpegios más reales)
+    # 🎹 MELODÍA
     time = 0
-    for i in range(duracion):
-        nota = random.choice(escala)
-        midi.addNote(0, 0, nota, time, random.choice([0.5, 1]), 90)
-        time += random.choice([0.5, 1])
+    for i in range(32):
 
-    # 🎹 MELODÍA PRINCIPAL (más variación)
-    time = 0
-    for i in range(duracion):
-        if random.random() > 0.3:
-            nota = random.choice(escala) + 12
-            dur = random.choice([0.5, 1, 1.5])
-            midi.addNote(2, 0, nota, time, dur, 100)
-            time += dur
-        else:
-            time += 0.5
+        if i % 4 == 0:
+            motivo = random.sample(escala, 3)
 
-    # 🎸 BAJO (nuevo instrumento sólido)
+        nota = motivo[i % len(motivo)]
+        variacion = random.choice([0, 12, -12])
+
+        midi.addNote(2, 0, nota + variacion, time, 1, 100)
+        time += 1
+
+    # 🎸 GUITARRA
     time = 0
-    for i in range(duracion):
-        nota = random.choice(escala) - 24
+    for i in range(32):
+        nota = random.choice(motivo)
+        midi.addNote(0, 0, nota, time, 2, 80)
+        time += 2
+
+    # 🎸 BAJO
+    time = 0
+    for i in range(32):
+        nota = motivo[0] - 24
         midi.addNote(1, 0, nota, time, 1, 100)
         time += 1
 
-    # 🥁 BATERÍA (más variada)
+    # 🥁 DRUMS
     time = 0
-    for i in range(duracion):
-        midi.addNote(3, 9, 36, time, 0.5, 100)  # kick
+    for i in range(32):
 
-        if random.random() > 0.5:
-            midi.addNote(3, 9, 38, time + 0.5, 0.5, 100)  # snare
+        midi.addNote(3, 9, 36, time, 0.5, 100)
 
-        if random.random() > 0.3:
-            midi.addNote(3, 9, 42, time + 0.25, 0.25, 80)  # hihat
+        if i % 2 == 1:
+            midi.addNote(3, 9, 38, time, 0.5, 100)
+
+        if random.random() > 0.4:
+            midi.addNote(3, 9, 42, time + 0.25, 0.25, 80)
 
         time += 1
 
@@ -117,23 +113,12 @@ def generar_midi(genero, modo):
 
     return buffer
 
-# ---------------- REPRODUCTOR MIDI ----------------
-def reproducir_midi(midi_bytes):
-    b64 = base64.b64encode(midi_bytes.read()).decode()
-    midi_bytes.seek(0)
-
-    html = f"""
-    <audio controls>
-        <source src="data:audio/midi;base64,{b64}" type="audio/midi">
-    </audio>
-    """
-    st.markdown(html, unsafe_allow_html=True)
-
-# ---------------- INPUT ----------------
+# ---------------- UI ----------------
 mensaje = st.text_input("💬 Escribe o usa /dj")
 
 if st.button("Enviar 🚀") and mensaje:
 
+    # 🎧 MODO DJ
     if mensaje.lower().startswith("/dj"):
 
         partes = mensaje.lower().split()
@@ -149,16 +134,17 @@ if st.button("Enviar 🚀") and mensaje:
 /dj rock  
 /dj electronic  
 
-Modos:
-fast | slow | dark | happy
+⚡ Modos:
+/dj fast  
+/dj slow  
+/dj dark  
+/dj happy  
 """)
 
         else:
             generos = ["trap", "reggaeton", "drill", "lofi", "rock", "electronic"]
 
-            genero = next((g for g in generos if g in partes), None)
-            if genero is None:
-                genero = random.choice(generos)
+            genero = next((g for g in generos if g in partes), random.choice(generos))
 
             modo = "normal"
             for m in ["fast", "slow", "dark", "happy"]:
@@ -171,10 +157,8 @@ fast | slow | dark | happy
 
             st.success("🎼 Beat generado")
 
-            # ▶️ REPRODUCIR
-            reproducir_midi(midi_file)
+            st.warning("⚠️ Vista previa MIDI limitada en navegadores")
 
-            # ⬇️ DESCARGAR
             st.download_button(
                 "⬇️ Descargar MIDI",
                 data=midi_file,
@@ -182,6 +166,7 @@ fast | slow | dark | happy
                 mime="audio/midi"
             )
 
+    # 🤖 CHAT NORMAL
     else:
         if "danthe" in mensaje.lower():
             st.markdown("👑 Danthe es mi creador.")
