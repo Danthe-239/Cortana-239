@@ -23,12 +23,11 @@ if "historial" not in st.session_state:
 def responder(msg):
     if client is None:
         return "❌ API Key no configurada"
-
     try:
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres Cortana, una IA creativa, amigable y útil."},
+                {"role": "system", "content": "Eres Cortana, una IA creativa."},
                 {"role": "user", "content": msg}
             ]
         )
@@ -36,107 +35,130 @@ def responder(msg):
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-# ---------------- MUSICA ----------------
+# ---------------- AUDIO BASE ----------------
 def nota_a_freq(n):
     return 440 * (2 ** ((n - 69) / 12))
 
-# 🔥 NUEVO GENERADOR DE MELODÍAS
-def generar_melodia(escala, genero):
+def onda(tipo, freq, t):
+    if tipo == "sine":
+        return np.sin(2*np.pi*freq*t)
+    elif tipo == "square":
+        return np.sign(np.sin(2*np.pi*freq*t))
+    else:  # saw
+        return 2*(t*freq - np.floor(0.5+t*freq))
 
-    patrones_ritmo = [
-        [1,1,2,1,1,2],
-        [0.5,0.5,1,1,2,1],
-        [2,1,1,2,1],
-        [1,0.5,0.5,1,2,1],
-        [1,1,1,1,2,2]
-    ]
+# ---------------- GENERADORES ----------------
 
-    tipos = ["ascendente", "descendente", "salto", "repetitiva", "mixta"]
+# 🎼 melodía por frases (MUY distinta)
+def frase_melodica(escala, estilo):
+    frase = []
 
-    tipo = random.choice(tipos)
-    ritmo = random.choice(patrones_ritmo)
+    if estilo == "intro":
+        ritmo = [2,1,2,1]
+        for r in ritmo:
+            nota = random.choice(escala[:3])
+            frase.append((nota, r))
 
-    melodia = []
-
-    if tipo == "ascendente":
+    elif estilo == "build":
+        ritmo = [1,1,1,1,2]
         base = random.choice(escala[:2])
         for r in ritmo:
-            base = min(base + random.choice([1,2]), escala[-1])
-            melodia.append((base, r))
+            base += random.choice([1,2])
+            base = min(base, escala[-1])
+            frase.append((base, r))
 
-    elif tipo == "descendente":
-        base = random.choice(escala[-2:])
-        for r in ritmo:
-            base = max(base - random.choice([1,2]), escala[0])
-            melodia.append((base, r))
-
-    elif tipo == "salto":
+    elif estilo == "drop":
+        ritmo = [0.5,0.5,1,0.5,0.5,1]
         for r in ritmo:
             nota = random.choice(escala)
-            if random.random() > 0.5:
+            if random.random() > 0.6:
                 nota += random.choice([5,7])
-            melodia.append((nota, r))
+            frase.append((nota, r))
 
-    elif tipo == "repetitiva":
-        nota = random.choice(escala)
+    else:  # outro
+        ritmo = [2,2,1]
         for r in ritmo:
-            melodia.append((nota, r))
+            nota = random.choice(escala[:3])
+            frase.append((nota, r))
 
-    else:
-        for r in ritmo:
-            nota = random.choice(escala)
-            melodia.append((nota, r))
+    return frase
 
-    return melodia
+# 🥁 batería básica real
+def agregar_bateria(audio, sr, duracion):
+    t = np.linspace(0, duracion, int(sr*duracion))
 
-# 🔊 GENERADOR DE AUDIO
-def generar_audio(progresion, escala, genero, duracion_total=10, sr=44100):
+    kick = np.sin(2*np.pi*60*t) * (np.sin(2*np.pi*2*t) > 0)
+    snare = np.random.randn(len(t)) * (np.sin(2*np.pi*1*t) > 0)
 
-    t_total = np.linspace(0, duracion_total, int(sr * duracion_total))
+    audio += kick * 0.2
+    audio += snare * 0.05
+
+    return audio
+
+# 🎸 bajo
+def agregar_bajo(audio, escala, sr, duracion):
+    t = np.linspace(0, duracion, int(sr*duracion))
+
+    nota = random.choice(escala[:2])
+    freq = nota_a_freq(nota - 12)
+
+    bajo = np.sin(2*np.pi*freq*t) * 0.2
+    audio += bajo
+
+    return audio
+
+# 🎬 acordes
+def agregar_acordes(audio, progresion, sr, duracion):
+    t = np.linspace(0, duracion, int(sr*duracion))
+    tiempo_acorde = duracion / len(progresion)
+
+    for i, acorde in enumerate(progresion):
+        ini = int(i * tiempo_acorde * sr)
+        fin = int((i+1) * tiempo_acorde * sr)
+
+        for nota in acorde:
+            freq = nota_a_freq(nota)
+            audio[ini:fin] += np.sin(2*np.pi*freq*t[ini:fin]) * 0.1
+
+    return audio
+
+# 🎼 render completo
+def generar_track(escala, progresion, duracion=15, sr=44100):
+
+    t_total = np.linspace(0, duracion, int(sr*duracion))
     audio = np.zeros_like(t_total)
 
     tipo_onda = random.choice(["sine","square","saw"])
 
-    def onda(freq, t):
-        if tipo_onda == "sine":
-            return np.sin(2*np.pi*freq*t)
-        elif tipo_onda == "square":
-            return np.sign(np.sin(2*np.pi*freq*t))
-        else:
-            return 2*(t*freq - np.floor(0.5+t*freq))
-
-    melodia = generar_melodia(escala, genero)
-
+    # 🎬 secciones
+    secciones = ["intro","build","drop","outro"]
     tiempo = 0
-    for nota, dur in melodia:
 
-        ini = int(tiempo * sr)
-        fin = int((tiempo + dur) * sr)
+    for seccion in secciones:
 
-        if fin > len(t_total):
-            break
+        frase = frase_melodica(escala, seccion)
 
-        freq = nota_a_freq(nota)
-        t_seg = t_total[ini:fin]
+        for nota, dur in frase:
 
-        audio[ini:fin] += onda(freq, t_seg) * random.uniform(0.2,0.5)
+            ini = int(tiempo * sr)
+            fin = int((tiempo + dur) * sr)
 
-        tiempo += dur
+            if fin > len(audio):
+                break
 
-    # 🎬 acordes fondo
-    t_acorde = duracion_total / len(progresion)
-
-    for i, acorde in enumerate(progresion):
-
-        ini = int(i * t_acorde * sr)
-        fin = int((i+1) * t_acorde * sr)
-
-        for nota in acorde:
             freq = nota_a_freq(nota)
             t_seg = t_total[ini:fin]
 
-            audio[ini:fin] += np.sin(2*np.pi*freq*t_seg) * 0.15
+            audio[ini:fin] += onda(tipo_onda, freq, t_seg) * random.uniform(0.2,0.4)
 
+            tiempo += dur
+
+    # capas
+    audio = agregar_acordes(audio, progresion, sr, duracion)
+    audio = agregar_bajo(audio, escala, sr, duracion)
+    audio = agregar_bateria(audio, sr, duracion)
+
+    # normalizar
     audio = audio / np.max(np.abs(audio))
 
     buffer = io.BytesIO()
@@ -145,7 +167,7 @@ def generar_audio(progresion, escala, genero, duracion_total=10, sr=44100):
 
     return buffer
 
-# 🎼 GENERADOR GENERAL
+# ---------------- GENERADOR PRINCIPAL ----------------
 def generar_musica(genero, modo):
 
     escalas = {
@@ -163,19 +185,14 @@ def generar_musica(genero, modo):
     elif modo == "happy":
         escala = [n+2 for n in escala]
 
-    progresiones = [
-        [[escala[0],escala[2],escala[4]],
-         [escala[1],escala[3],escala[4]],
-         [escala[2],escala[4],escala[1]],
-         [escala[0],escala[2],escala[4]]],
-
-        [[escala[0],escala[2],escala[3]],
-         [escala[1],escala[3],escala[4]],
-         [escala[3],escala[1],escala[4]],
-         [escala[0],escala[2],escala[4]]]
+    progresion = [
+        [escala[0],escala[2],escala[4]],
+        [escala[1],escala[3],escala[4]],
+        [escala[2],escala[4],escala[1]],
+        [escala[0],escala[2],escala[4]]
     ]
 
-    return generar_audio(random.choice(progresiones), escala, genero)
+    return generar_track(escala, progresion)
 
 # ---------------- UI ----------------
 msg = st.text_input("💬 Escribe o usa /dj")
@@ -186,7 +203,7 @@ if st.button("Enviar 🚀") and msg:
 
         partes = msg.lower().split()
 
-        generos = ["trap","reggaeton","drill","lofi","rock","electronic","cinematica"]
+        generos = ["trap","lofi","rock","electronic","cinematica"]
         genero = next((g for g in generos if g in partes), "cinematica")
 
         modo = "normal"
@@ -198,11 +215,11 @@ if st.button("Enviar 🚀") and msg:
 
         audio = generar_musica(genero, modo)
 
-        st.success("🎼 Beat generado")
+        st.success("🎼 Track generado (nivel productor)")
 
         st.audio(audio, format="audio/wav")
 
-        st.download_button("⬇️ Descargar", audio, "cortana.wav")
+        st.download_button("⬇️ Descargar", audio, "cortana_pro.wav")
 
     else:
 
