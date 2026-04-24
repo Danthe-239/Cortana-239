@@ -4,6 +4,9 @@ import random
 import io
 import numpy as np
 from scipy.io.wavfile import write
+import pandas as pd
+from PIL import Image
+import json
 
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="Cortana IA", page_icon="🤖")
@@ -19,23 +22,73 @@ except:
 if "historial" not in st.session_state:
     st.session_state.historial = []
 
+# ---------------- ARCHIVOS ----------------
+st.subheader("📂 Analizar archivo")
+
+archivo = st.file_uploader(
+    "Sube un archivo",
+    type=["txt","csv","json","png","jpg","jpeg","wav"]
+)
+
+contenido_archivo = None
+
+if archivo is not None:
+
+    try:
+        if archivo.type == "text/plain":
+            contenido_archivo = archivo.read().decode("utf-8")
+            st.success("📄 Texto cargado")
+
+        elif archivo.type == "text/csv":
+            df = pd.read_csv(archivo)
+            contenido_archivo = df.head().to_string()
+            st.success("📊 CSV cargado")
+            st.dataframe(df.head())
+
+        elif archivo.type == "application/json":
+            data = json.load(archivo)
+            contenido_archivo = json.dumps(data, indent=2)
+            st.success("🧠 JSON cargado")
+            st.json(data)
+
+        elif "image" in archivo.type:
+            img = Image.open(archivo)
+            st.image(img, caption="🖼️ Imagen cargada")
+            contenido_archivo = "Imagen cargada. Describe lo que ves."
+
+        elif "audio" in archivo.type:
+            st.audio(archivo)
+            contenido_archivo = "Audio cargado. Describe o analiza el audio."
+
+        else:
+            st.warning("⚠️ Tipo no soportado")
+
+    except Exception as e:
+        st.error(f"Error leyendo archivo: {e}")
+
 # ---------------- CHAT ----------------
-def responder(msg):
+def responder(msg, contexto=None):
     if client is None:
         return "❌ API Key no configurada"
+
     try:
+        prompt = msg
+        if contexto:
+            prompt = f"Archivo:\n{contexto}\n\nInstrucción:\n{msg}"
+
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres Cortana, una IA creativa."},
-                {"role": "user", "content": msg}
+                {"role": "system", "content": "Eres Cortana, una IA avanzada que analiza archivos y responde inteligentemente."},
+                {"role": "user", "content": prompt}
             ]
         )
         return r.choices[0].message.content
+
     except Exception as e:
         return f"❌ Error: {str(e)}"
 
-# ---------------- AUDIO BASE ----------------
+# ---------------- AUDIO ----------------
 def nota_a_freq(n):
     return 440 * (2 ** ((n - 69) / 12))
 
@@ -44,138 +97,95 @@ def onda(tipo, freq, t):
         return np.sin(2*np.pi*freq*t)
     elif tipo == "square":
         return np.sign(np.sin(2*np.pi*freq*t))
-    else:  # saw
+    else:
         return 2*(t*freq - np.floor(0.5+t*freq))
 
-# ---------------- GENERADORES ----------------
+# ---------------- MUSICA ----------------
+def crear_motivo(escala):
+    return [(random.choice(escala), random.choice([0.5,1,1.5])) for _ in range(random.randint(4,6))]
 
-# 🎼 melodía por frases (MUY distinta)
-def frase_melodica(escala, estilo):
-    frase = []
+def transformar_motivo(m):
+    tipo = random.choice(["invertir","retro","expandir","saltar","variar"])
+    nuevo = []
 
-    if estilo == "intro":
-        ritmo = [2,1,2,1]
-        for r in ritmo:
-            nota = random.choice(escala[:3])
-            frase.append((nota, r))
+    if tipo == "invertir":
+        base = m[0][0]
+        for n,d in m:
+            nuevo.append((base-(n-base), d))
+    elif tipo == "retro":
+        nuevo = list(reversed(m))
+    elif tipo == "expandir":
+        for n,d in m:
+            nuevo.append((n,d*2))
+    elif tipo == "saltar":
+        for n,d in m:
+            nuevo.append((n+random.choice([-5,5,7]), d))
+    else:
+        for n,d in m:
+            nuevo.append((n+random.choice([-2,-1,1,2]), d))
 
-    elif estilo == "build":
-        ritmo = [1,1,1,1,2]
-        base = random.choice(escala[:2])
-        for r in ritmo:
-            base += random.choice([1,2])
-            base = min(base, escala[-1])
-            frase.append((base, r))
+    return nuevo
 
-    elif estilo == "drop":
-        ritmo = [0.5,0.5,1,0.5,0.5,1]
-        for r in ritmo:
-            nota = random.choice(escala)
-            if random.random() > 0.6:
-                nota += random.choice([5,7])
-            frase.append((nota, r))
+def generar_melodia(escala):
+    m1 = crear_motivo(escala)
+    m2 = crear_motivo(escala)
+    return m1 + transformar_motivo(m1) + m2 + transformar_motivo(m2)
 
-    else:  # outro
-        ritmo = [2,2,1]
-        for r in ritmo:
-            nota = random.choice(escala[:3])
-            frase.append((nota, r))
-
-    return frase
-
-# 🥁 batería básica real
-def agregar_bateria(audio, sr, duracion):
-    t = np.linspace(0, duracion, int(sr*duracion))
-
-    kick = np.sin(2*np.pi*60*t) * (np.sin(2*np.pi*2*t) > 0)
-    snare = np.random.randn(len(t)) * (np.sin(2*np.pi*1*t) > 0)
-
-    audio += kick * 0.2
-    audio += snare * 0.05
-
+def agregar_bajo(audio, escala, sr, dur):
+    t = np.linspace(0, dur, int(sr*dur))
+    freq = nota_a_freq(random.choice(escala[:2]) - 12)
+    audio += np.sin(2*np.pi*freq*t) * 0.2
     return audio
 
-# 🎸 bajo
-def agregar_bajo(audio, escala, sr, duracion):
-    t = np.linspace(0, duracion, int(sr*duracion))
-
-    nota = random.choice(escala[:2])
-    freq = nota_a_freq(nota - 12)
-
-    bajo = np.sin(2*np.pi*freq*t) * 0.2
-    audio += bajo
-
+def agregar_bateria(audio, sr, dur):
+    t = np.linspace(0, dur, int(sr*dur))
+    kick = (np.sin(2*np.pi*60*t)*(np.sin(2*np.pi*2*t)>0))*0.3
+    snare = (np.random.randn(len(t))*(np.sin(2*np.pi*1*t)>0))*0.1
+    audio += kick + snare
     return audio
 
-# 🎬 acordes
-def agregar_acordes(audio, progresion, sr, duracion):
-    t = np.linspace(0, duracion, int(sr*duracion))
-    tiempo_acorde = duracion / len(progresion)
-
-    for i, acorde in enumerate(progresion):
-        ini = int(i * tiempo_acorde * sr)
-        fin = int((i+1) * tiempo_acorde * sr)
-
-        for nota in acorde:
-            freq = nota_a_freq(nota)
-            audio[ini:fin] += np.sin(2*np.pi*freq*t[ini:fin]) * 0.1
-
+def agregar_acordes(audio, prog, sr, dur):
+    t = np.linspace(0, dur, int(sr*dur))
+    step = dur/len(prog)
+    for i,acorde in enumerate(prog):
+        ini = int(i*step*sr)
+        fin = int((i+1)*step*sr)
+        for n in acorde:
+            audio[ini:fin] += np.sin(2*np.pi*nota_a_freq(n)*t[ini:fin])*0.1
     return audio
 
-# 🎼 render completo
-def generar_track(escala, progresion, duracion=15, sr=44100):
+def generar_track(escala, prog, dur=18, sr=44100):
+    t = np.linspace(0, dur, int(sr*dur))
+    audio = np.zeros_like(t)
+    tipo = random.choice(["sine","square","saw"])
+    melodia = generar_melodia(escala)
 
-    t_total = np.linspace(0, duracion, int(sr*duracion))
-    audio = np.zeros_like(t_total)
-
-    tipo_onda = random.choice(["sine","square","saw"])
-
-    # 🎬 secciones
-    secciones = ["intro","build","drop","outro"]
     tiempo = 0
+    for n,d in melodia:
+        ini = int(tiempo*sr)
+        fin = int((tiempo+d)*sr)
+        if fin > len(audio): break
+        audio[ini:fin] += onda(tipo, nota_a_freq(n), t[ini:fin])*random.uniform(0.2,0.4)
+        tiempo += d
 
-    for seccion in secciones:
+    audio = agregar_acordes(audio, prog, sr, dur)
+    audio = agregar_bajo(audio, escala, sr, dur)
+    audio = agregar_bateria(audio, sr, dur)
 
-        frase = frase_melodica(escala, seccion)
+    audio /= np.max(np.abs(audio))
 
-        for nota, dur in frase:
+    buf = io.BytesIO()
+    write(buf, sr, (audio*32767).astype(np.int16))
+    buf.seek(0)
+    return buf
 
-            ini = int(tiempo * sr)
-            fin = int((tiempo + dur) * sr)
-
-            if fin > len(audio):
-                break
-
-            freq = nota_a_freq(nota)
-            t_seg = t_total[ini:fin]
-
-            audio[ini:fin] += onda(tipo_onda, freq, t_seg) * random.uniform(0.2,0.4)
-
-            tiempo += dur
-
-    # capas
-    audio = agregar_acordes(audio, progresion, sr, duracion)
-    audio = agregar_bajo(audio, escala, sr, duracion)
-    audio = agregar_bateria(audio, sr, duracion)
-
-    # normalizar
-    audio = audio / np.max(np.abs(audio))
-
-    buffer = io.BytesIO()
-    write(buffer, sr, (audio * 32767).astype(np.int16))
-    buffer.seek(0)
-
-    return buffer
-
-# ---------------- GENERADOR PRINCIPAL ----------------
 def generar_musica(genero, modo):
-
     escalas = {
         "cinematica":[48,50,52,55,57],
         "trap":[60,63,65,67,70],
         "lofi":[60,62,63,67,69],
         "rock":[52,55,57,59,62],
-        "electronic":[60,64,67,71],
+        "electronic":[60,64,67,71]
     }
 
     escala = escalas.get(genero, [60,62,64,67,69])
@@ -185,14 +195,14 @@ def generar_musica(genero, modo):
     elif modo == "happy":
         escala = [n+2 for n in escala]
 
-    progresion = [
+    prog = [
         [escala[0],escala[2],escala[4]],
         [escala[1],escala[3],escala[4]],
         [escala[2],escala[4],escala[1]],
         [escala[0],escala[2],escala[4]]
     ]
 
-    return generar_track(escala, progresion)
+    return generar_track(escala, prog)
 
 # ---------------- UI ----------------
 msg = st.text_input("💬 Escribe o usa /dj")
@@ -202,7 +212,6 @@ if st.button("Enviar 🚀") and msg:
     if msg.lower().startswith("/dj"):
 
         partes = msg.lower().split()
-
         generos = ["trap","lofi","rock","electronic","cinematica"]
         genero = next((g for g in generos if g in partes), "cinematica")
 
@@ -212,13 +221,9 @@ if st.button("Enviar 🚀") and msg:
                 modo = m
 
         st.markdown(f"🎧 DJ Cortana: {genero} | {modo}")
-
         audio = generar_musica(genero, modo)
 
-        st.success("🎼 Track generado (nivel productor)")
-
         st.audio(audio, format="audio/wav")
-
         st.download_button("⬇️ Descargar", audio, "cortana_pro.wav")
 
     else:
@@ -226,14 +231,11 @@ if st.button("Enviar 🚀") and msg:
         if "danthe" in msg.lower():
             st.markdown("👑 Danthe es mi creador.")
 
-        resp = responder(msg)
+        resp = responder(msg, contenido_archivo)
 
         st.session_state.historial.append(("Tú", msg))
         st.session_state.historial.append(("Cortana", resp))
 
 # historial
-for a, t in st.session_state.historial:
-    if a == "Tú":
-        st.markdown(f"🧑 {t}")
-    else:
-        st.markdown(f"🤖 {t}")
+for a,t in st.session_state.historial:
+    st.markdown(f"{'🧑' if a=='Tú' else '🤖'} {t}")
