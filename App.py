@@ -1,7 +1,6 @@
 import streamlit as st
 from groq import Groq
 import random
-from midiutil import MIDIFile
 import io
 import numpy as np
 from scipy.io.wavfile import write
@@ -28,7 +27,7 @@ def responder(mensaje):
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres Cortana, IA avanzada, creativa y útil."},
+                {"role": "system", "content": "Eres Cortana, una IA creativa, útil y amigable."},
                 {"role": "user", "content": mensaje}
             ]
         )
@@ -36,16 +35,28 @@ def responder(mensaje):
     except Exception as e:
         return f"❌ Error IA: {str(e)}"
 
-# ---------------- AUDIO REAL (WAV) ----------------
+# ---------------- AUDIO ENGINE ----------------
 def nota_a_freq(nota):
     return 440 * (2 ** ((nota - 69) / 12))
 
-def generar_audio(progresion, duracion=8, sample_rate=44100):
+def generar_audio_avanzado(progresion, duracion=10, sample_rate=44100):
 
     t = np.linspace(0, duracion, int(sample_rate * duracion))
     audio = np.zeros_like(t)
 
     tiempo_por_acorde = duracion / len(progresion)
+
+    def onda(tipo, freq, t):
+        if tipo == "sine":
+            return np.sin(2 * np.pi * freq * t)
+        elif tipo == "square":
+            return np.sign(np.sin(2 * np.pi * freq * t))
+        elif tipo == "saw":
+            return 2 * (t * freq - np.floor(0.5 + t * freq))
+        else:
+            return np.sin(2 * np.pi * freq * t)
+
+    tipo_onda = random.choice(["sine", "square", "saw"])
 
     for i, acorde in enumerate(progresion):
         inicio = int(i * tiempo_por_acorde * sample_rate)
@@ -53,8 +64,12 @@ def generar_audio(progresion, duracion=8, sample_rate=44100):
 
         for nota in acorde:
             freq = nota_a_freq(nota)
-            onda = np.sin(2 * np.pi * freq * t[inicio:fin])
-            audio[inicio:fin] += onda * 0.3
+            segmento_t = t[inicio:fin]
+
+            sonido = onda(tipo_onda, freq, segmento_t)
+            volumen = random.uniform(0.2, 0.5)
+
+            audio[inicio:fin] += sonido * volumen
 
     audio = audio / np.max(np.abs(audio))
 
@@ -64,30 +79,51 @@ def generar_audio(progresion, duracion=8, sample_rate=44100):
 
     return buffer
 
-# ---------------- GENERADOR MUSICAL PRO ----------------
+# ---------------- GENERADOR MUSICAL ----------------
 def generar_musica(genero, modo):
 
-    # 🎬 Cinemática
-    if genero == "cinematica":
-        escala = [48, 50, 52, 55, 57]
-    else:
-        escala = [60, 62, 64, 67, 69]
+    escalas = {
+        "cinematica": [48, 50, 52, 55, 57],
+        "trap": [60, 63, 65, 67, 70],
+        "lofi": [60, 62, 63, 67, 69],
+        "rock": [52, 55, 57, 59, 62],
+        "electronic": [60, 64, 67, 71],
+    }
 
+    escala = escalas.get(genero, [60, 62, 64, 67, 69])
+
+    # 🎭 Modos
     if modo == "dark":
         escala = [n - 2 for n in escala]
+    elif modo == "happy":
+        escala = [n + 2 for n in escala]
 
-    # 🎼 PROGRESIÓN ÉPICA
-    progresion = [
-        [escala[0], escala[2], escala[4]],
-        [escala[1], escala[3], escala[4]],
-        [escala[0], escala[2], escala[3]],
-        [escala[0], escala[2], escala[4]]
+    # 🎼 Progresiones variadas
+    progresiones = [
+        [
+            [escala[0], escala[2], escala[4]],
+            [escala[1], escala[3], escala[4]],
+            [escala[0], escala[2], escala[3]],
+            [escala[0], escala[2], escala[4]]
+        ],
+        [
+            [escala[0], escala[2], escala[3]],
+            [escala[1], escala[3], escala[4]],
+            [escala[2], escala[4], escala[1]],
+            [escala[0], escala[2], escala[4]]
+        ],
+        [
+            [escala[0], escala[2], escala[4]],
+            [escala[3], escala[1], escala[4]],
+            [escala[2], escala[0], escala[3]],
+            [escala[1], escala[3], escala[4]]
+        ]
     ]
 
-    # 🎧 generar audio real
-    audio = generar_audio(progresion, duracion=10)
+    progresion = random.choice(progresiones)
+    duracion = random.choice([8, 10, 12])
 
-    return audio
+    return generar_audio_avanzado(progresion, duracion)
 
 # ---------------- UI ----------------
 mensaje = st.text_input("💬 Escribe o usa /dj")
@@ -134,7 +170,7 @@ if st.button("Enviar 🚀") and mensaje:
 
             st.success("🎼 Beat generado")
 
-            # ▶️ REPRODUCTOR REAL
+            # ▶️ REPRODUCTOR
             st.audio(audio, format="audio/wav")
 
             st.download_button(
