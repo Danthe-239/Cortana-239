@@ -1,28 +1,52 @@
 import streamlit as st
-from openai import OpenAI
+import os
+import json
+from groq import Groq
 import random
 import io
 import numpy as np
 from scipy.io.wavfile import write
 import pandas as pd
 from PIL import Image
-import json
 from pypdf import PdfReader
-import base64
 
 # ---------------- CONFIG ----------------
-st.set_page_config(page_title="Cortana IA PRO", page_icon="🤖")
-st.title("🤖 Cortana IA PRO (Modo Definitivo)")
+st.set_page_config(page_title="Cortana IA Startup", page_icon="🤖")
+st.title("🤖 Cortana IA - Startup Mode")
 
 # ---------------- API ----------------
 try:
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except:
     client = None
 
-# ---------------- MEMORIA ----------------
-if "historial" not in st.session_state:
-    st.session_state.historial = []
+# ---------------- DB ----------------
+DB_FILE = "database.json"
+
+def cargar_db():
+    if not os.path.exists(DB_FILE):
+        return {}
+    with open(DB_FILE, "r") as f:
+        return json.load(f)
+
+def guardar_db(db):
+    with open(DB_FILE, "w") as f:
+        json.dump(db, f, indent=2)
+
+db = cargar_db()
+
+# ---------------- LOGIN ----------------
+st.sidebar.title("👤 Usuario")
+usuario = st.sidebar.text_input("Nombre de usuario")
+
+if not usuario:
+    st.warning("⚠️ Ingresa un usuario para continuar")
+    st.stop()
+
+if usuario not in db:
+    db[usuario] = {"historial": []}
+
+historial = db[usuario]["historial"]
 
 # ---------------- ARCHIVOS ----------------
 st.subheader("📂 Subir archivo")
@@ -33,92 +57,64 @@ archivo = st.file_uploader(
 )
 
 contenido_archivo = None
-imagen_base64 = None
 
 if archivo:
+    folder = f"files/{usuario}"
+    os.makedirs(folder, exist_ok=True)
 
-    if "image" in archivo.type:
-        img = Image.open(archivo)
-        st.image(img)
+    file_path = os.path.join(folder, archivo.name)
 
-        imagen_bytes = archivo.read()
-        imagen_base64 = base64.b64encode(imagen_bytes).decode("utf-8")
-
-        contenido_archivo = "imagen"
-
-    elif archivo.type == "application/pdf":
-        reader = PdfReader(archivo)
-        texto = ""
-        for p in reader.pages:
-            texto += (p.extract_text() or "") + "\n"
-
-        contenido_archivo = texto[:8000]
-        st.success("📄 PDF cargado completo")
-
-    elif archivo.type == "text/csv":
-        df = pd.read_csv(archivo)
-        st.dataframe(df.head())
-        contenido_archivo = df.to_string()
-
-    elif archivo.type == "text/plain":
-        contenido_archivo = archivo.read().decode("utf-8")
-
-    elif archivo.type == "application/json":
-        contenido_archivo = json.dumps(json.load(archivo), indent=2)
-
-    elif "audio" in archivo.type:
-        st.audio(archivo)
-        contenido_archivo = "audio"
-
-# ---------------- IA ----------------
-def responder(msg):
-
-    if client is None:
-        return "❌ API no configurada"
+    with open(file_path, "wb") as f:
+        f.write(archivo.getbuffer())
 
     try:
+        if archivo.type == "text/plain":
+            contenido_archivo = archivo.read().decode("utf-8")
 
-        # -------- IMAGEN REAL --------
-        if contenido_archivo == "imagen" and imagen_base64:
+        elif archivo.type == "text/csv":
+            df = pd.read_csv(archivo)
+            st.dataframe(df.head())
+            contenido_archivo = df.to_string()
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": msg},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{imagen_base64}"
-                            }
-                        }
-                    ]
-                }]
-            )
+        elif archivo.type == "application/json":
+            contenido_archivo = json.dumps(json.load(archivo), indent=2)
 
-            return response.choices[0].message.content
+        elif archivo.type == "application/pdf":
+            reader = PdfReader(archivo)
+            texto = ""
+            for p in reader.pages:
+                texto += (p.extract_text() or "") + "\n"
+            contenido_archivo = texto[:5000]
 
-        # -------- TEXTO / PDF --------
-        else:
+        elif "image" in archivo.type:
+            img = Image.open(archivo)
+            st.image(img)
+            contenido_archivo = "El usuario subió una imagen. Pídele que la describa."
 
-            prompt = f"""
-Archivo:
-{contenido_archivo}
+        elif "audio" in archivo.type:
+            st.audio(archivo)
+            contenido_archivo = "Analiza este audio"
 
-Pregunta:
-{msg}
-""" if contenido_archivo else msg
+    except Exception as e:
+        st.error(f"Error leyendo archivo: {e}")
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Eres Cortana, una IA avanzada multimodal."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
+# ---------------- IA ----------------
+def responder(msg, contexto=None):
+    if client is None:
+        return "❌ API Key no configurada"
 
-            return response.choices[0].message.content
+    try:
+        prompt = f"Archivo:\n{contexto}\n\nUsuario:\n{msg}" if contexto else msg
+
+        r = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "Eres Cortana, una IA útil y clara."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        return r.choices[0].message.content
 
     except Exception as e:
         return f"❌ Error: {str(e)}"
@@ -128,6 +124,7 @@ def generar_audio():
     sr = 44100
     t = np.linspace(0, 10, sr*10)
     audio = np.sin(2*np.pi*440*t) * 0.3
+
     buf = io.BytesIO()
     write(buf, sr, (audio*32767).astype(np.int16))
     buf.seek(0)
@@ -138,16 +135,24 @@ msg = st.text_input("💬 Escribe o usa /dj")
 
 if st.button("Enviar 🚀") and msg:
 
-    if msg.startswith("/dj"):
+    if msg.lower().startswith("/dj"):
+        st.markdown("🎧 DJ Cortana activo")
         audio = generar_audio()
         st.audio(audio)
-        st.download_button("Descargar", audio, "beat.wav")
+        st.download_button("⬇️ Descargar", audio, "beat.wav")
 
     else:
-        respuesta = responder(msg)
-        st.session_state.historial.append(("Tú", msg))
-        st.session_state.historial.append(("Cortana", respuesta))
+        if "danthe" in msg.lower():
+            st.markdown("👑 Danthe es mi creador.")
+
+        respuesta = responder(msg, contenido_archivo)
+
+        historial.append({"user": msg, "bot": respuesta})
+        guardar_db(db)
 
 # ---------------- HISTORIAL ----------------
-for a,t in st.session_state.historial:
-    st.markdown(f"{'🧑' if a=='Tú' else '🤖'} {t}")
+st.subheader("💬 Historial")
+
+for chat in historial:
+    st.markdown(f"🧑 {chat['user']}")
+    st.markdown(f"🤖 {chat['bot']}")
