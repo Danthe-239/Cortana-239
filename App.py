@@ -7,6 +7,7 @@ from scipy.io.wavfile import write
 import pandas as pd
 from PIL import Image
 import json
+from pypdf import PdfReader
 
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="Cortana IA", page_icon="🤖")
@@ -27,13 +28,12 @@ st.subheader("📂 Analizar archivo")
 
 archivo = st.file_uploader(
     "Sube un archivo",
-    type=["txt","csv","json","png","jpg","jpeg","wav"]
+    type=["txt","csv","json","png","jpg","jpeg","wav","pdf"]
 )
 
 contenido_archivo = None
 
 if archivo is not None:
-
     try:
         if archivo.type == "text/plain":
             contenido_archivo = archivo.read().decode("utf-8")
@@ -41,7 +41,7 @@ if archivo is not None:
 
         elif archivo.type == "text/csv":
             df = pd.read_csv(archivo)
-            contenido_archivo = df.head().to_string()
+            contenido_archivo = df.to_string()
             st.success("📊 CSV cargado")
             st.dataframe(df.head())
 
@@ -51,14 +51,27 @@ if archivo is not None:
             st.success("🧠 JSON cargado")
             st.json(data)
 
+        elif archivo.type == "application/pdf":
+            reader = PdfReader(archivo)
+            texto = ""
+
+            for page in reader.pages:
+                texto += page.extract_text() + "\n"
+
+            # dividir en partes
+            chunks = [texto[i:i+1500] for i in range(0, len(texto), 1500)]
+
+            contenido_archivo = chunks
+            st.success(f"📄 PDF cargado ({len(reader.pages)} páginas)")
+
         elif "image" in archivo.type:
             img = Image.open(archivo)
             st.image(img, caption="🖼️ Imagen cargada")
-            contenido_archivo = "Imagen cargada. Describe lo que ves."
+            contenido_archivo = "Describe la imagen detalladamente"
 
         elif "audio" in archivo.type:
             st.audio(archivo)
-            contenido_archivo = "Audio cargado. Describe o analiza el audio."
+            contenido_archivo = "Analiza este audio"
 
         else:
             st.warning("⚠️ Tipo no soportado")
@@ -66,23 +79,31 @@ if archivo is not None:
     except Exception as e:
         st.error(f"Error leyendo archivo: {e}")
 
-# ---------------- CHAT ----------------
+# ---------------- RESPUESTA IA ----------------
 def responder(msg, contexto=None):
+
     if client is None:
         return "❌ API Key no configurada"
 
     try:
-        prompt = msg
-        if contexto:
-            prompt = f"Archivo:\n{contexto}\n\nInstrucción:\n{msg}"
+        if isinstance(contexto, list):
+            texto_usado = ""
+            for chunk in contexto[:3]:  # usa solo partes
+                texto_usado += chunk + "\n"
+
+            prompt = f"Documento:\n{texto_usado}\n\nPregunta:\n{msg}"
+
+        else:
+            prompt = f"Archivo:\n{contexto}\n\nPregunta:\n{msg}" if contexto else msg
 
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres Cortana, una IA avanzada que analiza archivos y responde inteligentemente."},
+                {"role": "system", "content": "Eres Cortana, experta en analizar archivos y documentos."},
                 {"role": "user", "content": prompt}
             ]
         )
+
         return r.choices[0].message.content
 
     except Exception as e:
@@ -100,7 +121,7 @@ def onda(tipo, freq, t):
     else:
         return 2*(t*freq - np.floor(0.5+t*freq))
 
-# ---------------- MUSICA ----------------
+# ---------------- GENERADOR MUSICAL ----------------
 def crear_motivo(escala):
     return [(random.choice(escala), random.choice([0.5,1,1.5])) for _ in range(random.randint(4,6))]
 
@@ -147,16 +168,20 @@ def agregar_bateria(audio, sr, dur):
 def agregar_acordes(audio, prog, sr, dur):
     t = np.linspace(0, dur, int(sr*dur))
     step = dur/len(prog)
+
     for i,acorde in enumerate(prog):
         ini = int(i*step*sr)
         fin = int((i+1)*step*sr)
+
         for n in acorde:
             audio[ini:fin] += np.sin(2*np.pi*nota_a_freq(n)*t[ini:fin])*0.1
+
     return audio
 
 def generar_track(escala, prog, dur=18, sr=44100):
     t = np.linspace(0, dur, int(sr*dur))
     audio = np.zeros_like(t)
+
     tipo = random.choice(["sine","square","saw"])
     melodia = generar_melodia(escala)
 
@@ -165,6 +190,7 @@ def generar_track(escala, prog, dur=18, sr=44100):
         ini = int(tiempo*sr)
         fin = int((tiempo+d)*sr)
         if fin > len(audio): break
+
         audio[ini:fin] += onda(tipo, nota_a_freq(n), t[ini:fin])*random.uniform(0.2,0.4)
         tiempo += d
 
@@ -212,6 +238,7 @@ if st.button("Enviar 🚀") and msg:
     if msg.lower().startswith("/dj"):
 
         partes = msg.lower().split()
+
         generos = ["trap","lofi","rock","electronic","cinematica"]
         genero = next((g for g in generos if g in partes), "cinematica")
 
@@ -221,6 +248,7 @@ if st.button("Enviar 🚀") and msg:
                 modo = m
 
         st.markdown(f"🎧 DJ Cortana: {genero} | {modo}")
+
         audio = generar_musica(genero, modo)
 
         st.audio(audio, format="audio/wav")
@@ -231,11 +259,11 @@ if st.button("Enviar 🚀") and msg:
         if "danthe" in msg.lower():
             st.markdown("👑 Danthe es mi creador.")
 
-        resp = responder(msg, contenido_archivo)
+        respuesta = responder(msg, contenido_archivo)
 
         st.session_state.historial.append(("Tú", msg))
-        st.session_state.historial.append(("Cortana", resp))
+        st.session_state.historial.append(("Cortana", respuesta))
 
-# historial
-for a,t in st.session_state.historial:
-    st.markdown(f"{'🧑' if a=='Tú' else '🤖'} {t}")
+# ---------------- HISTORIAL ----------------
+for autor, texto in st.session_state.historial:
+    st.markdown(f"{'🧑' if autor=='Tú' else '🤖'} {texto}")
