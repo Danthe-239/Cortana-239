@@ -35,46 +35,55 @@ contenido_archivo = None
 
 if archivo is not None:
     try:
+        # -------- TXT --------
         if archivo.type == "text/plain":
             contenido_archivo = archivo.read().decode("utf-8")
             st.success("📄 Texto cargado")
 
+        # -------- CSV --------
         elif archivo.type == "text/csv":
             df = pd.read_csv(archivo)
             contenido_archivo = df.to_string()
             st.success("📊 CSV cargado")
             st.dataframe(df.head())
 
+        # -------- JSON --------
         elif archivo.type == "application/json":
             data = json.load(archivo)
             contenido_archivo = json.dumps(data, indent=2)
             st.success("🧠 JSON cargado")
             st.json(data)
 
+        # -------- PDF --------
         elif archivo.type == "application/pdf":
             reader = PdfReader(archivo)
             texto = ""
 
             for page in reader.pages:
-                texto += page.extract_text() + "\n"
+                texto += (page.extract_text() or "") + "\n"
 
-            # dividir en partes
             chunks = [texto[i:i+1500] for i in range(0, len(texto), 1500)]
-
             contenido_archivo = chunks
+
             st.success(f"📄 PDF cargado ({len(reader.pages)} páginas)")
 
+        # -------- IMAGEN (CORREGIDO) --------
         elif "image" in archivo.type:
             img = Image.open(archivo)
             st.image(img, caption="🖼️ Imagen cargada")
-            contenido_archivo = "Describe la imagen detalladamente"
 
+            contenido_archivo = None
+
+            st.warning("⚠️ Cortana aún no puede analizar imágenes directamente.")
+            st.info("💡 Describe tú la imagen y yo te ayudo a analizarla.")
+
+        # -------- AUDIO --------
         elif "audio" in archivo.type:
             st.audio(archivo)
             contenido_archivo = "Analiza este audio"
 
         else:
-            st.warning("⚠️ Tipo no soportado")
+            st.warning("⚠️ Tipo de archivo no soportado")
 
     except Exception as e:
         st.error(f"Error leyendo archivo: {e}")
@@ -88,7 +97,7 @@ def responder(msg, contexto=None):
     try:
         if isinstance(contexto, list):
             texto_usado = ""
-            for chunk in contexto[:3]:  # usa solo partes
+            for chunk in contexto[:3]:
                 texto_usado += chunk + "\n"
 
             prompt = f"Documento:\n{texto_usado}\n\nPregunta:\n{msg}"
@@ -99,7 +108,7 @@ def responder(msg, contexto=None):
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres Cortana, experta en analizar archivos y documentos."},
+                {"role": "system", "content": "Eres Cortana, experta en analizar archivos."},
                 {"role": "user", "content": prompt}
             ]
         )
@@ -121,7 +130,7 @@ def onda(tipo, freq, t):
     else:
         return 2*(t*freq - np.floor(0.5+t*freq))
 
-# ---------------- GENERADOR MUSICAL ----------------
+# ---------------- MUSICA ----------------
 def crear_motivo(escala):
     return [(random.choice(escala), random.choice([0.5,1,1.5])) for _ in range(random.randint(4,6))]
 
