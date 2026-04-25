@@ -67,20 +67,24 @@ if archivo is not None:
 
             st.success(f"📄 PDF cargado ({len(reader.pages)} páginas)")
 
-        # -------- IMAGEN (CORREGIDO) --------
+        # -------- IMAGEN (INTELIGENTE) --------
         elif "image" in archivo.type:
             img = Image.open(archivo)
             st.image(img, caption="🖼️ Imagen cargada")
 
-            contenido_archivo = None
+            contenido_archivo = (
+                "El usuario ha subido una imagen, pero no puedes verla directamente. "
+                "Debes pedirle una descripción clara (objetos, personas, colores, entorno) "
+                "y luego ayudarle a analizarla."
+            )
 
-            st.warning("⚠️ Cortana aún no puede analizar imágenes directamente.")
-            st.info("💡 Describe tú la imagen y yo te ayudo a analizarla.")
+            st.warning("⚠️ No puedo ver imágenes directamente.")
+            st.info("💡 Escríbeme qué hay en la imagen y la analizo contigo.")
 
         # -------- AUDIO --------
         elif "audio" in archivo.type:
             st.audio(archivo)
-            contenido_archivo = "Analiza este audio"
+            contenido_archivo = "El usuario subió un audio. Analízalo según lo que pida."
 
         else:
             st.warning("⚠️ Tipo de archivo no soportado")
@@ -95,20 +99,40 @@ def responder(msg, contexto=None):
         return "❌ API Key no configurada"
 
     try:
+
+        # PDF (chunks)
         if isinstance(contexto, list):
             texto_usado = ""
             for chunk in contexto[:3]:
                 texto_usado += chunk + "\n"
 
-            prompt = f"Documento:\n{texto_usado}\n\nPregunta:\n{msg}"
+            prompt = f"""
+Documento:
+{texto_usado}
+
+Pregunta:
+{msg}
+"""
+
+        # Otros archivos
+        elif contexto:
+            prompt = f"""
+{contexto}
+
+Usuario dice:
+{msg}
+
+Responde de forma útil.
+Si es una imagen, no inventes: pide detalles.
+"""
 
         else:
-            prompt = f"Archivo:\n{contexto}\n\nPregunta:\n{msg}" if contexto else msg
+            prompt = msg
 
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres Cortana, experta en analizar archivos."},
+                {"role": "system", "content": "Eres Cortana, una IA útil, clara y honesta."},
                 {"role": "user", "content": prompt}
             ]
         )
