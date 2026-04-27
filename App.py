@@ -11,9 +11,9 @@ from pypdf import PdfReader
 from groq import Groq
 
 # ==================================================
-# CONFIG
+# CONFIGURACIÓN GENERAL
 # ==================================================
-st.set_page_config(page_title="Cortana IA", page_icon="🤖")
+st.set_page_config(page_title="Cortana IA", page_icon="🤖", layout="wide")
 st.title("🤖 Cortana IA - Full Startup")
 
 DB_FILE = "database.json"
@@ -31,7 +31,7 @@ except:
 client = Groq(api_key=API_KEY) if API_KEY else None
 
 # ==================================================
-# DATABASE
+# BASE DE DATOS
 # ==================================================
 def cargar_db():
     if not os.path.exists(DB_FILE):
@@ -39,16 +39,16 @@ def cargar_db():
 
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
-            txt = f.read().strip()
-            if txt == "":
+            contenido = f.read().strip()
+            if contenido == "":
                 return {}
-            return json.loads(txt)
+            return json.loads(contenido)
     except:
         return {}
 
-def guardar_db(db):
+def guardar_db(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(db, f, indent=2)
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 db = cargar_db()
 
@@ -59,7 +59,7 @@ def hash_pass(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # ==================================================
-# SESION
+# SESIÓN
 # ==================================================
 if "usuario" not in st.session_state:
     st.session_state.usuario = None
@@ -67,8 +67,8 @@ if "usuario" not in st.session_state:
 # ==================================================
 # LOGIN PROFESIONAL
 # ==================================================
-def pantalla_login():
-    st.sidebar.title("🔐 Login")
+def login():
+    st.sidebar.title("🔐 Login Profesional")
 
     modo = st.sidebar.radio(
         "Acceso",
@@ -81,7 +81,7 @@ def pantalla_login():
     if modo == "Registrarse":
         if st.sidebar.button("Crear cuenta"):
             if usuario == "" or password == "":
-                st.sidebar.warning("Completa los campos")
+                st.sidebar.warning("Completa todos los campos")
             elif usuario in db:
                 st.sidebar.error("Ese usuario ya existe")
             else:
@@ -104,15 +104,15 @@ def pantalla_login():
                 st.sidebar.error("Usuario no existe")
 
 # ==================================================
-# SI NO ESTA LOGUEADO
+# SI NO HAY SESIÓN
 # ==================================================
 if st.session_state.usuario is None:
-    pantalla_login()
+    login()
     st.warning("🔒 Inicia sesión para continuar")
     st.stop()
 
 # ==================================================
-# PANEL USUARIO
+# PANEL DE USUARIO
 # ==================================================
 usuario = st.session_state.usuario
 
@@ -142,42 +142,48 @@ def generar_beat():
 
     t = np.linspace(0, duracion, sr * duracion)
 
-    freq = random.choice([220, 330, 440, 550])
+    base = random.choice([220, 330, 440])
 
-    onda = (
-        np.sin(2 * np.pi * freq * t) * 0.35 +
-        np.sin(2 * np.pi * (freq * 0.5) * t) * 0.25 +
-        np.sin(2 * np.pi * (freq * 2) * t) * 0.15
+    melodia = (
+        np.sin(2 * np.pi * base * t) * 0.30 +
+        np.sin(2 * np.pi * (base * 1.5) * t) * 0.20 +
+        np.sin(2 * np.pi * (base * 2) * t) * 0.10
     )
 
-    beat = np.zeros_like(t)
+    percusion = np.zeros_like(t)
 
     for i in range(0, len(t), sr // 2):
-        beat[i:i+1500] += np.hanning(1500) * 0.8
+        percusion[i:i+1500] += np.hanning(1500) * 0.9
 
-    audio = onda + beat
+    audio = melodia + percusion
     audio = audio / np.max(np.abs(audio))
 
-    buf = io.BytesIO()
-    write(buf, sr, (audio * 32767).astype(np.int16))
-    buf.seek(0)
+    buffer = io.BytesIO()
+    write(buffer, sr, (audio * 32767).astype(np.int16))
+    buffer.seek(0)
 
-    return buf
+    return buffer
 
 # ==================================================
-# IA CHAT
+# IA
 # ==================================================
 def responder(msg, contexto=None):
     if client is None:
-        return "⚠️ Agrega tu GROQ_API_KEY"
+        return "⚠️ Configura correctamente tu GROQ_API_KEY"
+
+    prompt = msg
+
+    if contexto:
+        prompt = f"""
+Archivo cargado:
+{contexto}
+
+Pregunta del usuario:
+{msg}
+"""
 
     try:
-        prompt = msg
-
-        if contexto:
-            prompt = f"Archivo o contexto:\n{contexto}\n\nPregunta:\n{msg}"
-
-        r = client.chat.completions.create(
+        respuesta = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
                 {
@@ -187,8 +193,9 @@ Eres Cortana:
 - Inteligente
 - Clara
 - Útil
+- Profesional
 - Analizas archivos
-- Respondes bien comandos DJ
+- Respondes breve y bien
 """
                 },
                 {
@@ -198,7 +205,7 @@ Eres Cortana:
             ]
         )
 
-        return r.choices[0].message.content
+        return respuesta.choices[0].message.content
 
     except Exception as e:
         return f"❌ Error: {e}"
@@ -209,7 +216,7 @@ Eres Cortana:
 st.subheader("📂 Analizar archivo")
 
 archivo = st.file_uploader(
-    "Sube un archivo",
+    "Sube archivo",
     type=["txt", "pdf", "png", "jpg", "jpeg"]
 )
 
@@ -229,18 +236,18 @@ if archivo:
         contenido_archivo = archivo.read().decode("utf-8")
 
     elif archivo.type == "application/pdf":
-        reader = PdfReader(archivo)
+        lector = PdfReader(archivo)
         texto = ""
 
-        for pagina in reader.pages:
+        for pagina in lector.pages:
             texto += (pagina.extract_text() or "") + "\n"
 
         contenido_archivo = texto[:6000]
 
     elif "image" in archivo.type:
-        img = Image.open(archivo)
-        st.image(img, caption="🖼️ Imagen cargada")
-        contenido_archivo = "El usuario subió una imagen. Describe y analiza visualmente según su petición."
+        imagen = Image.open(archivo)
+        st.image(imagen, caption="🖼️ Imagen cargada")
+        contenido_archivo = "El usuario subió una imagen."
 
 # ==================================================
 # CHAT
@@ -251,10 +258,26 @@ msg = st.text_input("Mensaje")
 
 if st.button("Enviar 🚀") and msg:
 
-    # ----------------------------------
+    texto = msg.lower().strip()
+
+    # ------------------------------------------
+    # RESPUESTAS SOBRE DANTHE
+    # ------------------------------------------
+    if (
+        "danthe" in texto
+        or "quien es tu creador" in texto
+        or "quién es tu creador" in texto
+        or "quien te creo" in texto
+        or "quién te creó" in texto
+        or "quien te creó" in texto
+        or "who is your creator" in texto
+    ):
+        respuesta = "👑 Mi creador es Danthe. Fue quien me dio vida y visión."
+
+    # ------------------------------------------
     # MODO DJ
-    # ----------------------------------
-    if msg.lower().startswith("/dj"):
+    # ------------------------------------------
+    elif texto.startswith("/dj"):
 
         st.success("🎧 DJ Cortana activado")
 
@@ -271,9 +294,9 @@ if st.button("Enviar 🚀") and msg:
 
         respuesta = "🎵 Beat generado correctamente."
 
-    # ----------------------------------
+    # ------------------------------------------
     # CHAT NORMAL
-    # ----------------------------------
+    # ------------------------------------------
     else:
         respuesta = responder(msg, contenido_archivo)
 
