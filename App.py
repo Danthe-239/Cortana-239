@@ -1,24 +1,16 @@
 import streamlit as st
 import os
 import json
+import hashlib
 from groq import Groq
-import random
-import io
-import numpy as np
-from scipy.io.wavfile import write
-import pandas as pd
-from PIL import Image
-from pypdf import PdfReader
 
 # ---------------- CONFIG ----------------
-st.set_page_config(page_title="Cortana IA Startup", page_icon="🤖")
+st.set_page_config(page_title="Cortana IA", page_icon="🤖")
 st.title("🤖 Cortana IA - Startup Mode")
 
 # ---------------- API ----------------
-try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-except:
-    client = None
+API_KEY = st.secrets.get("GROQ_API_KEY", "")
+client = Groq(api_key=API_KEY) if API_KEY else None
 
 # ---------------- DB ----------------
 DB_FILE = "database.json"
@@ -26,133 +18,117 @@ DB_FILE = "database.json"
 def cargar_db():
     if not os.path.exists(DB_FILE):
         return {}
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
+
+    try:
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            txt = f.read().strip()
+            if txt == "":
+                return {}
+            return json.loads(txt)
+    except:
+        return {}
 
 def guardar_db(db):
-    with open(DB_FILE, "w") as f:
+    with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(db, f, indent=2)
 
 db = cargar_db()
 
-# ---------------- LOGIN ----------------
-st.sidebar.title("👤 Usuario")
-usuario = st.sidebar.text_input("Nombre de usuario")
+# ---------------- SEGURIDAD ----------------
+def hash_pass(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-if not usuario:
-    st.warning("⚠️ Ingresa un usuario para continuar")
+# ---------------- SESION ----------------
+if "usuario" not in st.session_state:
+    st.session_state.usuario = None
+
+# ---------------- LOGIN ----------------
+def login_ui():
+    st.sidebar.title("🔐 Login Profesional")
+
+    opcion = st.sidebar.radio("Acceso", ["Iniciar sesión", "Registrarse"])
+
+    usuario = st.sidebar.text_input("Usuario")
+    password = st.sidebar.text_input("Contraseña", type="password")
+
+    if opcion == "Registrarse":
+        if st.sidebar.button("Crear cuenta"):
+            if usuario in db:
+                st.sidebar.error("Ese usuario ya existe")
+            elif usuario == "" or password == "":
+                st.sidebar.warning("Completa campos")
+            else:
+                db[usuario] = {
+                    "password": hash_pass(password),
+                    "historial": []
+                }
+                guardar_db(db)
+                st.sidebar.success("Cuenta creada. Ahora inicia sesión.")
+
+    if opcion == "Iniciar sesión":
+        if st.sidebar.button("Entrar"):
+            if usuario in db and db[usuario]["password"] == hash_pass(password):
+                st.session_state.usuario = usuario
+                st.rerun()
+            else:
+                st.sidebar.error("Usuario o contraseña incorrectos")
+
+# ---------------- SI NO LOGUEADO ----------------
+if st.session_state.usuario is None:
+    login_ui()
+    st.warning("🔒 Inicia sesión para continuar")
     st.stop()
 
+# ---------------- PANEL USUARIO ----------------
+usuario = st.session_state.usuario
+
+st.sidebar.success(f"✅ Sesión iniciada: {usuario}")
+
+if st.sidebar.button("Cerrar sesión"):
+    st.session_state.usuario = None
+    st.rerun()
+
+# ---------------- HISTORIAL ----------------
 if usuario not in db:
-    db[usuario] = {"historial": []}
+    db[usuario] = {"password": "", "historial": []}
 
 historial = db[usuario]["historial"]
 
-# ---------------- ARCHIVOS ----------------
-st.subheader("📂 Subir archivo")
-
-archivo = st.file_uploader(
-    "Sube archivo",
-    type=["txt","csv","json","png","jpg","jpeg","wav","pdf"]
-)
-
-contenido_archivo = None
-
-if archivo:
-    folder = f"files/{usuario}"
-    os.makedirs(folder, exist_ok=True)
-
-    file_path = os.path.join(folder, archivo.name)
-
-    with open(file_path, "wb") as f:
-        f.write(archivo.getbuffer())
-
-    try:
-        if archivo.type == "text/plain":
-            contenido_archivo = archivo.read().decode("utf-8")
-
-        elif archivo.type == "text/csv":
-            df = pd.read_csv(archivo)
-            st.dataframe(df.head())
-            contenido_archivo = df.to_string()
-
-        elif archivo.type == "application/json":
-            contenido_archivo = json.dumps(json.load(archivo), indent=2)
-
-        elif archivo.type == "application/pdf":
-            reader = PdfReader(archivo)
-            texto = ""
-            for p in reader.pages:
-                texto += (p.extract_text() or "") + "\n"
-            contenido_archivo = texto[:5000]
-
-        elif "image" in archivo.type:
-            img = Image.open(archivo)
-            st.image(img)
-            contenido_archivo = "El usuario subió una imagen. Pídele que la describa."
-
-        elif "audio" in archivo.type:
-            st.audio(archivo)
-            contenido_archivo = "Analiza este audio"
-
-    except Exception as e:
-        st.error(f"Error leyendo archivo: {e}")
-
 # ---------------- IA ----------------
-def responder(msg, contexto=None):
+def responder(msg):
     if client is None:
-        return "❌ API Key no configurada"
+        return "⚠️ Configura tu API Key."
 
     try:
-        prompt = f"Archivo:\n{contexto}\n\nUsuario:\n{msg}" if contexto else msg
-
         r = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": "Eres Cortana, una IA útil y clara."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": "Eres Cortana, inteligente, útil y clara."},
+                {"role": "user", "content": msg}
             ]
         )
-
         return r.choices[0].message.content
-
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"❌ Error: {e}"
 
-# ---------------- MUSICA ----------------
-def generar_audio():
-    sr = 44100
-    t = np.linspace(0, 10, sr*10)
-    audio = np.sin(2*np.pi*440*t) * 0.3
+# ---------------- CHAT ----------------
+st.subheader("💬 Chat")
 
-    buf = io.BytesIO()
-    write(buf, sr, (audio*32767).astype(np.int16))
-    buf.seek(0)
-    return buf
+msg = st.text_input("Escribe algo")
 
-# ---------------- UI ----------------
-msg = st.text_input("💬 Escribe o usa /dj")
+if st.button("Enviar") and msg:
+    resp = responder(msg)
 
-if st.button("Enviar 🚀") and msg:
+    historial.append({
+        "user": msg,
+        "bot": resp
+    })
 
-    if msg.lower().startswith("/dj"):
-        st.markdown("🎧 DJ Cortana activo")
-        audio = generar_audio()
-        st.audio(audio)
-        st.download_button("⬇️ Descargar", audio, "beat.wav")
+    db[usuario]["historial"] = historial
+    guardar_db(db)
 
-    else:
-        if "danthe" in msg.lower():
-            st.markdown("👑 Danthe es mi creador.")
-
-        respuesta = responder(msg, contenido_archivo)
-
-        historial.append({"user": msg, "bot": respuesta})
-        guardar_db(db)
-
-# ---------------- HISTORIAL ----------------
-st.subheader("💬 Historial")
-
-for chat in historial:
-    st.markdown(f"🧑 {chat['user']}")
-    st.markdown(f"🤖 {chat['bot']}")
+# ---------------- MOSTRAR CHAT ----------------
+for chat in historial[::-1]:
+    st.write("🧑", chat["user"])
+    st.write("🤖", chat["bot"])
+    st.divider()
