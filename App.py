@@ -68,7 +68,7 @@ if "usuario" not in st.session_state:
 # LOGIN PROFESIONAL
 # ==================================================
 def login():
-    st.sidebar.title("🔐 Login Profesional")
+    st.sidebar.title("🔐 Login or create an acount")
 
     modo = st.sidebar.radio(
         "Acceso",
