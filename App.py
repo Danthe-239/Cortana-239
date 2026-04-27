@@ -14,7 +14,7 @@ from groq import Groq
 # CONFIGURACIÓN GENERAL
 # ==================================================
 st.set_page_config(page_title="Cortana IA", page_icon="🤖", layout="wide")
-st.title("🤖 Cortana IA - Full Startup")
+st.title("🤖 Cortana IA - Web")
 
 DB_FILE = "database.json"
 
