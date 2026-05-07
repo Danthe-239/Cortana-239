@@ -480,7 +480,7 @@ if archivo:
 # CHAT
 # ==================================================
 
-st.subheader("💬 Escribe un mensaje, usa /cesar o /dj")
+st.subheader("💬 Escribe un mensaje, usa /cesar, /dj, /clear o /help")
 
 msg = st.text_input("Mensaje")
 
