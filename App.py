@@ -515,8 +515,36 @@ L.U.O.
     # ==================================================
 
     elif (
-        "muerte y resurrecion" in texto
-        and db[usuario]["dmg_activado"]
+    "muerte y resurrecion" in texto
+    and db[usuario]["dmg_activado"]
+):
+
+    respuesta = """
+Mabw ma cv qvnqmzvw.
+Um aqmvbw bwzbczilw.
+Twa uivqycíma um qvdilmv.
+xmzw vw um igcliv.
+mt uwvabzcw mabi tqjzm.
+
+G ma mt iaqovilw i bwzbczizum.
+
+Tia ttiuia kzmkmv g mabwg ibzixilw.
+Mabm qvnqmzvw ma ucg ozivlm g ma awtw xizi uí.
+
+vilqm um igclw kcivlw tw xmlí.
+twa ozqbwa vw aqzdqmzwv.
+xcma vilqm twa makckpw.
+
+uqa ttivbwa vw am wgmv.
+
+mabwg ibzixilw mv cv jizzivkw.
+ucg pwvlw.
+
+Vw lmjw mfqabqz.
+
+Mabi ma cvi kizbi
+lm UCMZBM G ZMACZZMKKQÓV.
+"""
     ):
 
         respuesta = """
