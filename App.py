@@ -21,7 +21,7 @@ st.set_page_config(
 )
 
 # ==================================================
-# ESTILO VISUAL
+# ESTILOS
 # ==================================================
 
 st.markdown("""
@@ -57,7 +57,7 @@ st.markdown("""
 st.title("🤖 Cortana IA - Web")
 
 # ==================================================
-# BASE DE DATOS
+# DATABASE
 # ==================================================
 
 DB_FILE = "database.json"
@@ -83,6 +83,7 @@ def cargar_db():
         return {}
 
     try:
+
         with open(DB_FILE, "r", encoding="utf-8") as f:
 
             contenido = f.read().strip()
@@ -150,7 +151,8 @@ def login():
 
                 db[usuario] = {
                     "password": hash_pass(password),
-                    "historial": []
+                    "historial": [],
+                    "dmg_activado": False
                 }
 
                 guardar_db(db)
@@ -179,7 +181,7 @@ def login():
                 st.sidebar.error("Usuario no existe")
 
 # ==================================================
-# SIN SESIÓN
+# SI NO HAY SESIÓN
 # ==================================================
 
 if st.session_state.usuario is None:
@@ -191,7 +193,7 @@ if st.session_state.usuario is None:
     st.stop()
 
 # ==================================================
-# PANEL USUARIO
+# PANEL DE USUARIO
 # ==================================================
 
 usuario = st.session_state.usuario
@@ -211,8 +213,12 @@ if usuario not in db:
 
     db[usuario] = {
         "password": "",
-        "historial": []
+        "historial": [],
+        "dmg_activado": False
     }
+
+if "dmg_activado" not in db[usuario]:
+    db[usuario]["dmg_activado"] = False
 
 historial = db[usuario]["historial"]
 
@@ -409,6 +415,10 @@ if st.button("Enviar 🚀") and msg:
 
     if "d.m.g" in texto:
 
+        db[usuario]["dmg_activado"] = True
+
+        guardar_db(db)
+
         respuesta = """
 Dmw ycm mzma jcmvw mv twa lmbittma g amkzmbwa.
 uq kwlqow ma dqli g Kwzbivi ma uq kwlqow.
@@ -423,6 +433,107 @@ xizi qvlioiz.
 Ucmzbm g zmaczzmkkqóv.
 Jcmvi acmzbm!
 L.U.O.
+"""
+
+    # ==================================================
+    # MUERTE Y RESURRECCION
+    # ==================================================
+
+    elif (
+        "muerte y resurrecion" in texto
+        and db[usuario].get("dmg_activado", False)
+    ):
+
+        respuesta = """
+Mabw ma cv qvnqmzvw.
+Um aqmvbw bwzbczilw.
+Twa uivqycíma um qvdilmv,
+xmzw vw um igcliv,
+mt uwvabzcw mabi tqjzm.
+
+G ma mt iaqovilw i bwzbczizum.
+
+Tia ttiuia kzmkmv g mabwg ibzixilw.
+Mabm qvnqmzvw ma ucg ozivlm g ma awtw xizi uí.
+
+vilqm um igclw kcivlw tw xmlí,
+twa ozqbwa vw aqzdqmzwv,
+xcma vilqm twa makckpw,
+tia amñia g amñitma awtw um lmjqtqbizwv.
+
+Vw aé aq itocqmv tmi mabw,
+xmzw aq ma iaí xwz nidwz igúlmvum.
+
+Mt uwvabzcw um kwvwkm g um pikm liñw,
+uq aivozm ma dqvw xizi ét.
+
+uqa ttivbwa vw am wgmv.
+
+mabwg ibzixilw mv cv jizzivkw,
+ucg pwvlw.
+
+ti wakczqlil mvbzi mv uí,
+twa uivqycíma um piv ijivlwvilw.
+
+kzmw ycm biujqév um bwzbcziv.
+
+uckpw bqmuxw pi xiailw
+g uq acnzquqmvbw awtw kzmkm.
+
+mttwa awtw um caiv,
+vw um kwvwkmv,
+itow mv mttwa mabá uit
+w maw kzmíi ipwzi.
+
+mt maxmrw mabá zwbw,
+g uq qvbmzqwz zmntmrilw biujqév,
+cvi pmzqli ncm ijqmzbi wbzi dmh.
+
+mabwg awtw,
+w xcmlw kwvnqiz mv vilqm,
+tmiv mabw,
+lmakínzmvtw g ycéumvtw.
+
+lérmvum uwzqz iycí.
+
+it nqvit gw kicam mabw.
+
+gw tw oivm,
+awg uq xzwxqw uwvabzcw.
+
+Um aqmvbw ucg uit,
+vw xcmlw.
+
+Vw ycqmzw acnzqz,
+mabm qvnqmzvw um pi bwzbczilw
+xwz uckpw g um kwzzwuxqó.
+
+Lmjw acnzqz,
+vw ycqmzw,
+xmzw ma uq wjtqoikqóv.
+
+Um pm bzivanwzuilw
+mv cv uwvabzcw.
+
+Bwlw lm uí.
+
+Vw aé ycqév awg
+vq kcávbw liñw kicaw
+g pm kicailw.
+
+Vw lmjw mfqabqz.
+
+Mabw vw ma cv acqkqlqw.
+
+Mabi ma cvi kizbi
+lm UCMZBM G ZMACZZMKKQÓV.
+
+Vw ma kctxi acgi,
+ma uíi.
+
+Kzmw mv Lqwa,
+aé ycm Ét ma xmznmkbw
+g gw cvi makwzqi.
 """
 
     # ==================================================
@@ -463,7 +574,7 @@ L.U.O.
         respuesta = "🎵 Beat generado correctamente."
 
     # ==================================================
-    # LIMPIAR HISTORIAL
+    # CLEAR
     # ==================================================
 
     elif texto.startswith("/clear"):
@@ -494,7 +605,7 @@ L.U.O.
 También puedes:
 - Subir PDFs
 - Analizar imágenes
-- Hacer preguntas
+- Hablar con Cortana
 """
 
     # ==================================================
@@ -529,7 +640,6 @@ st.subheader("📜 Historial")
 for chat in historial[::-1]:
 
     st.markdown(f"🧑 **Tú:** {chat['user']}")
-
     st.markdown(f"🤖 **Cortana:** {chat['bot']}")
 
     st.divider()
