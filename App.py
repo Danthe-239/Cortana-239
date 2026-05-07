@@ -4,14 +4,16 @@ import json
 import hashlib
 import io
 import random
+import unicodedata
 import numpy as np
+
 from scipy.io.wavfile import write
 from PIL import Image
 from pypdf import PdfReader
 from groq import Groq
 
 # ==================================================
-# CONFIGURACIÓN GENERAL
+# CONFIGURACIÓN
 # ==================================================
 
 st.set_page_config(
@@ -21,7 +23,7 @@ st.set_page_config(
 )
 
 # ==================================================
-# ESTILOS
+# ESTILO
 # ==================================================
 
 st.markdown("""
@@ -74,7 +76,21 @@ except:
 client = Groq(api_key=API_KEY) if API_KEY else None
 
 # ==================================================
-# FUNCIONES DB
+# NORMALIZAR TEXTO
+# ==================================================
+
+def normalizar(texto):
+
+    texto = texto.lower()
+
+    texto = unicodedata.normalize("NFD", texto)
+
+    texto = texto.encode("ascii", "ignore").decode("utf-8")
+
+    return texto
+
+# ==================================================
+# DATABASE
 # ==================================================
 
 def cargar_db():
@@ -181,7 +197,7 @@ def login():
                 st.sidebar.error("Usuario no existe")
 
 # ==================================================
-# SI NO HAY SESIÓN
+# SIN SESIÓN
 # ==================================================
 
 if st.session_state.usuario is None:
@@ -193,7 +209,7 @@ if st.session_state.usuario is None:
     st.stop()
 
 # ==================================================
-# PANEL DE USUARIO
+# PANEL
 # ==================================================
 
 usuario = st.session_state.usuario
@@ -222,14 +238,10 @@ if "dmg_activado" not in db[usuario]:
 
 historial = db[usuario]["historial"]
 
-# ==================================================
-# LIMITE HISTORIAL
-# ==================================================
-
 historial = historial[-50:]
 
 # ==================================================
-# DJ CORTANA
+# DJ
 # ==================================================
 
 def generar_beat():
@@ -285,7 +297,7 @@ def responder(msg, contexto=None):
 Archivo cargado:
 {contexto}
 
-Pregunta del usuario:
+Pregunta:
 {msg}
 """
 
@@ -295,18 +307,13 @@ Pregunta del usuario:
             "content": """
 Eres Cortana:
 - Inteligente
-- Clara
 - Profesional
-- Ayudas al usuario
+- Clara
 - Analizas archivos
-- Respondes corto y claro
+- Respondes breve
 """
         }
     ]
-
-    # ==================================================
-    # MEMORIA
-    # ==================================================
 
     for chat in historial[-6:]:
 
@@ -339,7 +346,7 @@ Eres Cortana:
         return f"❌ Error: {e}"
 
 # ==================================================
-# SUBIR ARCHIVOS
+# ARCHIVOS
 # ==================================================
 
 st.subheader("📂 Analizar archivo")
@@ -362,17 +369,13 @@ if archivo:
     with open(ruta, "wb") as f:
         f.write(archivo.getbuffer())
 
-    # ==================================================
     # TXT
-    # ==================================================
 
     if archivo.type == "text/plain":
 
         contenido_archivo = archivo.read().decode("utf-8")
 
-    # ==================================================
     # PDF
-    # ==================================================
 
     elif archivo.type == "application/pdf":
 
@@ -385,9 +388,7 @@ if archivo:
 
         contenido_archivo = texto_pdf[:6000]
 
-    # ==================================================
     # IMAGEN
-    # ==================================================
 
     elif "image" in archivo.type:
 
@@ -407,7 +408,7 @@ msg = st.text_input("Mensaje")
 
 if st.button("Enviar 🚀") and msg:
 
-    texto = msg.lower().strip()
+    texto = normalizar(msg)
 
     # ==================================================
     # D.M.G
@@ -424,12 +425,8 @@ Dmw ycm mzma jcmvw mv twa lmbittma g amkzmbwa.
 uq kwlqow ma dqli g Kwzbivi ma uq kwlqow.
 Mv uq kwlqow, am mvkcmvbzi cvi kizbi.
 Ma bc lmjmz mvkwvbizti.
-Bc lmjmz vw ma zmdqaiz mt kwlqow,
-makzqjqztm i Kwzbivi dizqia kwvdqvikqwvma
-lm xitijzia xizi ycm bm ti lm aq.
-Aq xqabia lmamia mvkwvbziz,
-mabm mvcvkqilw bc umrwz ocqi amzi
-xizi qvlioiz.
+Bc lmjmz vw ma zmdqaiz mt kwlqow.
+makzqjqztm i Kwzbivi dizqia kwvdqvikqwvma.
 Ucmzbm g zmaczzmkkqóv.
 Jcmvi acmzbm!
 L.U.O.
@@ -440,100 +437,21 @@ L.U.O.
     # ==================================================
 
     elif (
-        "Muerte y Resurreccion" in texto
-        and db[usuario].get("dmg_activado", False)
+        "muerte y resurrecion" in texto
+        and db[usuario]["dmg_activado"]
     ):
 
         respuesta = """
 Mabw ma cv qvnqmzvw.
 Um aqmvbw bwzbczilw.
-Twa uivqycíma um qvdilmv,
-xmzw vw um igcliv,
+Twa uivqycíma um qvdilmv.
+xmzw vw um igcliv.
 mt uwvabzcw mabi tqjzm.
 
 G ma mt iaqovilw i bwzbczizum.
 
 Tia ttiuia kzmkmv g mabwg ibzixilw.
 Mabm qvnqmzvw ma ucg ozivlm g ma awtw xizi uí.
-
-vilqm um igclw kcivlw tw xmlí,
-twa ozqbwa vw aqzdqmzwv,
-xcma vilqm twa makckpw,
-tia amñia g amñitma awtw um lmjqtqbizwv.
-
-Vw aé aq itocqmv tmi mabw,
-xmzw aq ma iaí xwz nidwz igúlmvum.
-
-Mt uwvabzcw um kwvwkm g um pikm liñw,
-uq aivozm ma dqvw xizi ét.
-
-uqa ttivbwa vw am wgmv.
-
-mabwg ibzixilw mv cv jizzivkw,
-ucg pwvlw.
-
-ti wakczqlil mvbzi mv uí,
-twa uivqycíma um piv ijivlwvilw.
-
-kzmw ycm biujqév um bwzbcziv.
-
-uckpw bqmuxw pi xiailw
-g uq acnzquqmvbw awtw kzmkm.
-
-mttwa awtw um caiv,
-vw um kwvwkmv,
-itow mv mttwa mabá uit
-w maw kzmíi ipwzi.
-
-mt maxmrw mabá zwbw,
-g uq qvbmzqwz zmntmrilw biujqév,
-cvi pmzqli ncm ijqmzbi wbzi dmh.
-
-mabwg awtw,
-w xcmlw kwvnqiz mv vilqm,
-tmiv mabw,
-lmakínzmvtw g ycéumvtw.
-
-lérmvum uwzqz iycí.
-
-it nqvit gw kicam mabw.
-
-gw tw oivm,
-awg uq xzwxqw uwvabzcw.
-
-Um aqmvbw ucg uit,
-vw xcmlw.
-
-Vw ycqmzw acnzqz,
-mabm qvnqmzvw um pi bwzbczilw
-xwz uckpw g um kwzzwuxqó.
-
-Lmjw acnzqz,
-vw ycqmzw,
-xmzw ma uq wjtqoikqóv.
-
-Um pm bzivanwzuilw
-mv cv uwvabzcw.
-
-Bwlw lm uí.
-
-Vw aé ycqév awg
-vq kcávbw liñw kicaw
-g pm kicailw.
-
-Vw lmjw mfqabqz.
-
-Mabw vw ma cv acqkqlqw.
-
-Mabi ma cvi kizbi
-lm UCMZBM G ZMACZZMKKQÓV.
-
-Vw ma kctxi acgi,
-ma uíi.
-
-Kzmw mv Lqwa,
-aé ycm Ét ma xmznmkbw
-g gw cvi makwzqi.
 """
 
     # ==================================================
@@ -543,14 +461,11 @@ g gw cvi makwzqi.
     elif (
         "danthe" in texto
         or "quien es tu creador" in texto
-        or "quién es tu creador" in texto
+        or "quien te creo" in texto
         or "who is your creator" in texto
     ):
 
-        respuesta = (
-            "👑 Mi creador es Danthe. "
-            "Fue quien me dio vida y visión."
-        )
+        respuesta = "👑 Mi creador es Danthe."
 
     # ==================================================
     # DJ
@@ -571,7 +486,21 @@ g gw cvi makwzqi.
             mime="audio/wav"
         )
 
-        respuesta = "🎵 Beat generado correctamente."
+        respuesta = "🎵 Beat generado."
+
+    # ==================================================
+    # HELP
+    # ==================================================
+
+    elif texto.startswith("/help"):
+
+        respuesta = """
+📌 COMANDOS
+
+/dj
+/help
+/clear
+"""
 
     # ==================================================
     # CLEAR
@@ -588,25 +517,6 @@ g gw cvi makwzqi.
         st.success("🧹 Historial eliminado")
 
         st.rerun()
-
-    # ==================================================
-    # HELP
-    # ==================================================
-
-    elif texto.startswith("/help"):
-
-        respuesta = """
-📌 COMANDOS DISPONIBLES
-
-/dj → Genera música
-/clear → Borra historial
-/help → Lista comandos
-
-También puedes:
-- Subir PDFs
-- Analizar imágenes
-- Hablar con Cortana
-"""
 
     # ==================================================
     # CHAT NORMAL
