@@ -1,3 +1,7 @@
+# ==================================================
+# CORTANA IA
+# ==================================================
+
 import streamlit as st
 import os
 import json
@@ -13,7 +17,7 @@ from pypdf import PdfReader
 from groq import Groq
 
 # ==================================================
-# CONFIGURACIÓN
+# CONFIG
 # ==================================================
 
 st.set_page_config(
@@ -22,8 +26,10 @@ st.set_page_config(
     layout="wide"
 )
 
+st.title("🤖 Cortana IA - Web")
+
 # ==================================================
-# ESTILO
+# CSS
 # ==================================================
 
 st.markdown("""
@@ -56,8 +62,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🤖 Cortana IA - Web")
-
 # ==================================================
 # DATABASE
 # ==================================================
@@ -65,7 +69,7 @@ st.title("🤖 Cortana IA - Web")
 DB_FILE = "database.json"
 
 # ==================================================
-# API KEY
+# API
 # ==================================================
 
 try:
@@ -90,6 +94,12 @@ def normalizar(texto):
     return texto
 
 # ==================================================
+# ALFABETO ESPAÑOL
+# ==================================================
+
+ALFABETO = "abcdefghijklmnñopqrstuvwxyz"
+
+# ==================================================
 # CIFRADO CESAR
 # ==================================================
 
@@ -99,26 +109,43 @@ def cifrado_cesar(texto, desplazamiento):
 
     for char in texto:
 
-        if char.isalpha():
+        lower = char.lower()
 
-            ascii_base = ord('A') if char.isupper() else ord('a')
+        # ==================================================
+        # SI LA LETRA EXISTE
+        # ==================================================
 
-            nuevo = (
-                (ord(char) - ascii_base - desplazamiento) % 26
-            ) + ascii_base
+        if lower in ALFABETO:
 
-            resultado += chr(nuevo)
+            indice = ALFABETO.index(lower)
+
+            nuevo_indice = (
+                indice - desplazamiento
+            ) % len(ALFABETO)
+
+            nueva_letra = ALFABETO[nuevo_indice]
+
+            # mantener mayúsculas
+            if char.isupper():
+                nueva_letra = nueva_letra.upper()
+
+            resultado += nueva_letra
 
         else:
+
             resultado += char
 
     return resultado
+
+# ==================================================
+# DETECTAR CESAR
+# ==================================================
 
 def detectar_cesar(texto):
 
     resultados = []
 
-    for d in range(1, 26):
+    for d in range(1, len(ALFABETO)):
 
         intento = cifrado_cesar(texto, d)
 
@@ -154,22 +181,32 @@ def cargar_db():
 def guardar_db(data):
 
     with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+
+        json.dump(
+            data,
+            f,
+            indent=2,
+            ensure_ascii=False
+        )
 
 db = cargar_db()
 
 # ==================================================
-# HASH PASSWORD
+# HASH
 # ==================================================
 
 def hash_pass(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+
+    return hashlib.sha256(
+        password.encode()
+    ).hexdigest()
 
 # ==================================================
 # SESSION
 # ==================================================
 
 if "usuario" not in st.session_state:
+
     st.session_state.usuario = None
 
 # ==================================================
@@ -186,7 +223,11 @@ def login():
     )
 
     usuario = st.sidebar.text_input("Usuario")
-    password = st.sidebar.text_input("Contraseña", type="password")
+
+    password = st.sidebar.text_input(
+        "Contraseña",
+        type="password"
+    )
 
     # ==================================================
     # REGISTRO
@@ -197,10 +238,16 @@ def login():
         if st.sidebar.button("Crear cuenta"):
 
             if usuario == "" or password == "":
-                st.sidebar.warning("Completa todos los campos")
+
+                st.sidebar.warning(
+                    "Completa todos los campos"
+                )
 
             elif usuario in db:
-                st.sidebar.error("Ese usuario ya existe")
+
+                st.sidebar.error(
+                    "Ese usuario ya existe"
+                )
 
             else:
 
@@ -212,7 +259,9 @@ def login():
 
                 guardar_db(db)
 
-                st.sidebar.success("Cuenta creada")
+                st.sidebar.success(
+                    "Cuenta creada"
+                )
 
     # ==================================================
     # LOGIN
@@ -224,19 +273,29 @@ def login():
 
             if usuario in db:
 
-                if db[usuario]["password"] == hash_pass(password):
+                if (
+                    db[usuario]["password"]
+                    == hash_pass(password)
+                ):
 
                     st.session_state.usuario = usuario
+
                     st.rerun()
 
                 else:
-                    st.sidebar.error("Contraseña incorrecta")
+
+                    st.sidebar.error(
+                        "Contraseña incorrecta"
+                    )
 
             else:
-                st.sidebar.error("Usuario no existe")
+
+                st.sidebar.error(
+                    "Usuario no existe"
+                )
 
 # ==================================================
-# SIN SESIÓN
+# SIN LOGIN
 # ==================================================
 
 if st.session_state.usuario is None:
@@ -248,20 +307,27 @@ if st.session_state.usuario is None:
     st.stop()
 
 # ==================================================
-# PANEL USUARIO
+# USUARIO
 # ==================================================
 
 usuario = st.session_state.usuario
 
-st.sidebar.success(f"✅ Sesión iniciada: {usuario}")
+st.sidebar.success(
+    f"✅ Sesión iniciada: {usuario}"
+)
+
+# ==================================================
+# LOGOUT
+# ==================================================
 
 if st.sidebar.button("Cerrar sesión"):
 
     st.session_state.usuario = None
+
     st.rerun()
 
 # ==================================================
-# ASEGURAR USUARIO
+# ASEGURAR USER
 # ==================================================
 
 if usuario not in db:
@@ -273,6 +339,7 @@ if usuario not in db:
     }
 
 if "dmg_activado" not in db[usuario]:
+
     db[usuario]["dmg_activado"] = False
 
 historial = db[usuario]["historial"]
@@ -290,22 +357,32 @@ historial = historial[-15:]
 def generar_beat():
 
     sr = 44100
+
     duracion = 8
 
-    t = np.linspace(0, duracion, sr * duracion)
+    t = np.linspace(
+        0,
+        duracion,
+        sr * duracion
+    )
 
     base = random.choice([220, 330, 440])
 
     melodia = (
-        np.sin(2 * np.pi * base * t) * 0.30 +
-        np.sin(2 * np.pi * (base * 1.5) * t) * 0.20 +
+        np.sin(2 * np.pi * base * t) * 0.30
+        +
+        np.sin(2 * np.pi * (base * 1.5) * t) * 0.20
+        +
         np.sin(2 * np.pi * (base * 2) * t) * 0.10
     )
 
     percusion = np.zeros_like(t)
 
     for i in range(0, len(t), sr // 2):
-        percusion[i:i+1500] += np.hanning(1500) * 0.9
+
+        percusion[i:i+1500] += (
+            np.hanning(1500) * 0.9
+        )
 
     audio = melodia + percusion
 
@@ -330,9 +407,17 @@ def generar_beat():
 def responder(msg, contexto=None):
 
     if client is None:
-        return "⚠️ Configura correctamente tu GROQ_API_KEY"
+
+        return (
+            "⚠️ Configura correctamente "
+            "tu GROQ_API_KEY"
+        )
 
     prompt = msg[:1000]
+
+    # ==================================================
+    # CONTEXTO
+    # ==================================================
 
     if contexto:
 
@@ -360,22 +445,27 @@ Eres Cortana:
         }
     ]
 
+    # ==================================================
+    # MEMORIA LIMITADA
+    # ==================================================
+
     historial_reciente = historial[-2:]
 
     for chat in historial_reciente:
 
-        user_msg = chat["user"][:300]
-        bot_msg = chat["bot"][:500]
-
         mensajes.append({
             "role": "user",
-            "content": user_msg
+            "content": chat["user"][:300]
         })
 
         mensajes.append({
             "role": "assistant",
-            "content": bot_msg
+            "content": chat["bot"][:500]
         })
+
+    # ==================================================
+    # MENSAJE
+    # ==================================================
 
     mensajes.append({
         "role": "user",
@@ -395,7 +485,12 @@ Eres Cortana:
             max_tokens=300
         )
 
-        return respuesta.choices[0].message.content
+        return (
+            respuesta
+            .choices[0]
+            .message
+            .content
+        )
 
     except Exception as e:
 
@@ -420,9 +515,13 @@ if archivo:
 
     os.makedirs(carpeta, exist_ok=True)
 
-    ruta = os.path.join(carpeta, archivo.name)
+    ruta = os.path.join(
+        carpeta,
+        archivo.name
+    )
 
     with open(ruta, "wb") as f:
+
         f.write(archivo.getbuffer())
 
     # ==================================================
@@ -431,7 +530,9 @@ if archivo:
 
     if archivo.type == "text/plain":
 
-        contenido_archivo = archivo.read().decode("utf-8")
+        contenido_archivo = (
+            archivo.read().decode("utf-8")
+        )
 
     # ==================================================
     # PDF
@@ -444,7 +545,10 @@ if archivo:
         texto_pdf = ""
 
         for pagina in lector.pages:
-            texto_pdf += (pagina.extract_text() or "") + "\n"
+
+            texto_pdf += (
+                pagina.extract_text() or ""
+            ) + "\n"
 
         contenido_archivo = texto_pdf[:2000]
 
@@ -456,17 +560,28 @@ if archivo:
 
         imagen = Image.open(archivo)
 
-        st.image(imagen, caption="🖼️ Imagen cargada")
+        st.image(
+            imagen,
+            caption="🖼️ Imagen cargada"
+        )
 
-        contenido_archivo = "El usuario subió una imagen."
+        contenido_archivo = (
+            "El usuario subió una imagen."
+        )
 
 # ==================================================
 # CHAT
 # ==================================================
 
-st.subheader("💬 Escribe un mensaje, usa /cesar, /dj, /clear o /help")
+st.subheader(
+    "💬 Escribe un mensaje, usa /cesar, /dj, /clear o /help"
+)
 
 msg = st.text_input("Mensaje")
+
+# ==================================================
+# ENVIAR
+# ==================================================
 
 if st.button("Enviar 🚀") and msg:
 
@@ -513,7 +628,9 @@ Mabw ma cu punpmzuw. Tm apmubw bwzbczilw. Swa tiupycíma tm pudilmu, xmzw uw tm 
 
     elif texto.startswith("/cesar"):
 
-        contenido = msg.replace("/cesar", "").strip()
+        contenido = (
+            msg.replace("/cesar", "").strip()
+        )
 
         if contenido == "":
 
@@ -537,7 +654,9 @@ Mabw ma cu punpmzuw. Tm apmubw bwzbczilw. Swa tiupycíma tm pudilmu, xmzw uw tm 
         or "who is your creator" in texto
     ):
 
-        respuesta = "👑 Mi creador es Danthe."
+        respuesta = (
+            "👑 Mi creador es Danthe."
+        )
 
     # ==================================================
     # DJ
@@ -597,7 +716,10 @@ Mabw ma cu punpmzuw. Tm apmubw bwzbczilw. Swa tiupycíma tm pudilmu, xmzw uw tm 
 
     else:
 
-        respuesta = responder(msg, contenido_archivo)
+        respuesta = responder(
+            msg,
+            contenido_archivo
+        )
 
     # ==================================================
     # GUARDAR HISTORIAL
@@ -622,7 +744,12 @@ st.subheader("📜 Historial")
 
 for chat in historial[::-1]:
 
-    st.markdown(f"🧑 **Tú:** {chat['user']}")
-    st.markdown(f"🤖 **Cortana:** {chat['bot']}")
+    st.markdown(
+        f"🧑 **Tú:** {chat['user']}"
+    )
+
+    st.markdown(
+        f"🤖 **Cortana:** {chat['bot']}"
+    )
 
     st.divider()
