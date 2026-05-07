@@ -349,7 +349,7 @@ Eres Cortana:
 - Profesional
 - Clara
 - Analizas archivos
-- Respondes breve
+- Respondes detalladamente
 """
         }
     ]
@@ -441,7 +441,7 @@ if archivo:
 # CHAT
 # ==================================================
 
-st.subheader("💬 Escribe un mensaje")
+st.subheader("💬 Escribe un mensaje, usa /cesar o /dj")
 
 msg = st.text_input("Mensaje")
 
