@@ -520,16 +520,7 @@ L.U.O.
     ):
 
         respuesta = """
-Mabw ma cv qvnqmzvw.
-Um aqmvbw bwzbczilw.
-Twa uivqycíma um qvdilmv.
-xmzw vw um igcliv.
-mt uwvabzcw mabi tqjzm.
-
-G ma mt iaqovilw i bwzbczizum.
-
-Tia ttiuia kzmkmv g mabwg ibzixilw.
-Mabm qvnqmzvw ma ucg ozivlm g ma awtw xizi uí.
+Mabw ma cu punpmzuw. Tm apmubw bwzbczilw. Swa tiupycíma tm pudilmu, xmzw uw tm igcliu, ms twuabzcw mabi spjzm. G ma ms iapñuilw i bwzbcziztm. Sia ssitia kzmkmu g mabwg ibzixilw. Mabm punpmzuw ma tcg ñziulm g ma awsw xizi tí. uilpm tm igclw kciulw sw xmlí, swa ñzpbwa uw apzdpmzwu, xcma uilpm swa makckow, sia amvia g amvisma awsw tm lmjpspbizwu. Uw aé ap isñcpmu smi mabw, xmzw ap ma iaí xwz nidwz igúlmutm. Ms twuabzcw tm kwuwkm g tm oikm livw, tp aiuñzm ma dpuw xizi és. tpa ssiubwa uw am wgmu. mabwg ibzixilw mu cu jizziukw, tcg owulw. si wakczplil mubzi mu tí, swa tiupycíma tm oiu ijiulwuilw. kzmw ycm bitjpéu tm bwzbcziu. tckow bpmtxw oi xiailw g tp acnzptpmubw awsw kzmkm. msswa awsw tm caiu, uw tm kwuwkmu, isñw mu msswa mabá tis w maw kzmíi iowzi ms maxmqw mabá zwbw, g tp pubmzpwz zmnsmqilw bitjpéu, cui omzpli ncm ijpmzbi wbzi dmh. mabwg awsw, w xcmlw kwunpiz mu uilpm, smiu mabw, lmakínzmusw g ycétmusw. léqmutm twzpz iycí. is npuis gw kicam mabw. gw sw ñium, awg tp xzwxpw twuabzcw. Tm apmubw tcg tis, uw xcmlw. Uw ycpmzw acnzpz, mabm punpmzuw tm oi bwzbczilw xwz tckow g tm kwzzwtxpó. Lmjw acnzpz, uw ycpmzw, xmzw ma tp wjspñikpóu. Tm om bziuanwztilw mu cu twuabzcw. Bwlw lm tí. Uw aé ycpéu awg up kcáubw livw kicaw g om kicailw. Uw lmjw mfpabpz. Mabw uw ma cu acpkplpw. Mabi ma cui kizbi lm TCMZBM G ZMACZZMKKPÓU. Uw ma kcsxi acgi, ma tíi. Kzmw mu Lpwa, aé ycm És ma xmznmkbw g gw cui makwzpi. 
 """
 
     # ==================================================
