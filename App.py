@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 # ==================================================
-# ESTILO
+# ESTILOS
 # ==================================================
 
 st.markdown("""
@@ -88,6 +88,45 @@ def normalizar(texto):
     texto = texto.encode("ascii", "ignore").decode("utf-8")
 
     return texto
+
+# ==================================================
+# CIFRADO CESAR
+# ==================================================
+
+def cifrado_cesar(texto, desplazamiento):
+
+    resultado = ""
+
+    for char in texto:
+
+        if char.isalpha():
+
+            ascii_base = ord('A') if char.isupper() else ord('a')
+
+            nuevo = (
+                (ord(char) - ascii_base - desplazamiento) % 26
+            ) + ascii_base
+
+            resultado += chr(nuevo)
+
+        else:
+            resultado += char
+
+    return resultado
+
+def detectar_cesar(texto):
+
+    resultados = []
+
+    for d in range(1, 26):
+
+        intento = cifrado_cesar(texto, d)
+
+        resultados.append(
+            f"🔑 Desplazamiento {d}:\n{intento}"
+        )
+
+    return "\n\n".join(resultados)
 
 # ==================================================
 # DATABASE
@@ -209,7 +248,7 @@ if st.session_state.usuario is None:
     st.stop()
 
 # ==================================================
-# PANEL
+# PANEL USUARIO
 # ==================================================
 
 usuario = st.session_state.usuario
@@ -446,6 +485,25 @@ Mabw ma cv qvnqmzvw. Um aqmvbw bwzbczilw. Twa uivqycíma um qvdilmv, xmzw vw um 
 """
 
     # ==================================================
+    # DESCIFRAR CESAR
+    # ==================================================
+
+    elif texto.startswith("/cesar"):
+
+        contenido = msg.replace("/cesar", "").strip()
+
+        if contenido == "":
+
+            respuesta = (
+                "⚠️ Usa:\n"
+                "/cesar texto_cifrado"
+            )
+
+        else:
+
+            respuesta = detectar_cesar(contenido)
+
+    # ==================================================
     # CREADOR
     # ==================================================
 
@@ -488,9 +546,10 @@ Mabw ma cv qvnqmzvw. Um aqmvbw bwzbczilw. Twa uivqycíma um qvdilmv, xmzw vw um 
         respuesta = """
 📌 COMANDOS
 
-/dj
-/help
-/clear
+/dj → Generar música
+/clear → Borrar historial
+/help → Ver comandos
+/cesar → Resolver cifrado César
 """
 
     # ==================================================
