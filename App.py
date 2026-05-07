@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 # ==================================================
-# ESTILOS
+# ESTILO
 # ==================================================
 
 st.markdown("""
@@ -277,7 +277,11 @@ if "dmg_activado" not in db[usuario]:
 
 historial = db[usuario]["historial"]
 
-historial = historial[-50:]
+# ==================================================
+# LIMITAR HISTORIAL
+# ==================================================
+
+historial = historial[-15:]
 
 # ==================================================
 # DJ
@@ -328,17 +332,27 @@ def responder(msg, contexto=None):
     if client is None:
         return "⚠️ Configura correctamente tu GROQ_API_KEY"
 
-    prompt = msg
+    # ==================================================
+    # LIMITAR TEXTO
+    # ==================================================
+
+    prompt = msg[:1000]
 
     if contexto:
+
+        contexto = contexto[:2000]
 
         prompt = f"""
 Archivo cargado:
 {contexto}
 
 Pregunta:
-{msg}
+{msg[:1000]}
 """
+
+    # ==================================================
+    # SYSTEM
+    # ==================================================
 
     mensajes = [
         {
@@ -346,25 +360,38 @@ Pregunta:
             "content": """
 Eres Cortana:
 - Inteligente
-- Profesional
 - Clara
-- Analizas archivos
-- Respondes detalladamente
+- Profesional
+- Respondes corto
+- Máximo 120 palabras
 """
         }
     ]
 
-    for chat in historial[-6:]:
+    # ==================================================
+    # MEMORIA LIMITADA
+    # ==================================================
+
+    historial_reciente = historial[-2:]
+
+    for chat in historial_reciente:
+
+        user_msg = chat["user"][:300]
+        bot_msg = chat["bot"][:500]
 
         mensajes.append({
             "role": "user",
-            "content": chat["user"]
+            "content": user_msg
         })
 
         mensajes.append({
             "role": "assistant",
-            "content": chat["bot"]
+            "content": bot_msg
         })
+
+    # ==================================================
+    # MENSAJE ACTUAL
+    # ==================================================
 
     mensajes.append({
         "role": "user",
@@ -374,15 +401,21 @@ Eres Cortana:
     try:
 
         respuesta = client.chat.completions.create(
+
             model="llama-3.1-8b-instant",
-            messages=mensajes
+
+            messages=mensajes,
+
+            temperature=0.7,
+
+            max_tokens=300
         )
 
         return respuesta.choices[0].message.content
 
     except Exception as e:
 
-        return f"❌ Error: {e}"
+        return f"❌ Error IA: {e}"
 
 # ==================================================
 # ARCHIVOS
@@ -408,13 +441,17 @@ if archivo:
     with open(ruta, "wb") as f:
         f.write(archivo.getbuffer())
 
+    # ==================================================
     # TXT
+    # ==================================================
 
     if archivo.type == "text/plain":
 
         contenido_archivo = archivo.read().decode("utf-8")
 
+    # ==================================================
     # PDF
+    # ==================================================
 
     elif archivo.type == "application/pdf":
 
@@ -425,9 +462,11 @@ if archivo:
         for pagina in lector.pages:
             texto_pdf += (pagina.extract_text() or "") + "\n"
 
-        contenido_archivo = texto_pdf[:6000]
+        contenido_archivo = texto_pdf[:2000]
 
+    # ==================================================
     # IMAGEN
+    # ==================================================
 
     elif "image" in archivo.type:
 
@@ -476,16 +515,25 @@ L.U.O.
     # ==================================================
 
     elif (
-        "muerte y resurreccion" in texto
+        "muerte y resurrecion" in texto
         and db[usuario]["dmg_activado"]
     ):
 
         respuesta = """
-Mabw ma cv qvnqmzvw. Um aqmvbw bwzbczilw. Twa uivqycíma um qvdilmv, xmzw vw um igcliv, mt uwvabzcw mabi tqjzm. G ma mt iaqovilw i bwzbczizum. Tia ttiuia kzmkmv g mabwg ibzixilw. Mabm qvnqmzvw ma ucg ozivlm g ma awtw xizi uí. vilqm um igclw kcivlw tw xmlí, twa ozqbwa vw aqzdqmzwv, xcma vilqm twa makckpw, tia amñia g amñitma awtw um lmjqtqbizwv. Vw aé aq itocqmv tmi mabw, xmzw aq ma iaí xwz nidwz igúlmvum. Mt uwvabzcw um kwvwkm g um pikm liñw, uq aivozm ma dqvw xizi ét. uqa ttivbwa vw am wgmv. mabwg ibzixilw mv cv jizzivkw, ucg pwvlw. ti wakczqlil mvbzi mv uí, twa uivqycíma um piv ijivlwvilw. kzmw ycm biujqév um bwzbcziv. uckpw bqmuxw pi xiailw g uq acnzquqmvbw awtw kzmkm. mttwa awtw um caiv, vw um kwvwkmv, itow mv mttwa mabá uit w maw kzmíi ipwzi mt maxmrw mabá zwbw, g uq qvbmzqwz zmntmrilw biujqév, cvi pmzqli ncm ijqmzbi wbzi dmh. mabwg awtw, w xcmlw kwvnqiz mv vilqm, tmiv mabw, lmakínzmvtw g ycéumvtw. lérmvum uwzqz iycí. it nqvit gw kicam mabw. gw tw oivm, awg uq xzwxqw uwvabzcw. Um aqmvbw ucg uit, vw xcmlw. Vw ycqmzw acnzqz, mabm qvnqmzvw um pi bwzbczilw xwz uckpw g um kwzzwuxqó. Lmjw acnzqz, vw ycqmzw, xmzw ma uq wjtqoikqóv. Um pm bzivanwzuilw mv cv uwvabzcw. Bwlw lm uí. Vw aé ycqév awg vq kcávbw liñw kicaw g pm kicailw. Vw lmjw mfqabqz. Mabw vw ma cv acqkqlqw. Mabi ma cvi kizbi lm UCMZBM G ZMACZZMKKQÓV. Vw ma kctxi acgi, ma uíi. Kzmw mv Lqwa, aé ycm Ét ma xmznmkbw g gw cvi makwzqi.
+Mabw ma cv qvnqmzvw.
+Um aqmvbw bwzbczilw.
+Twa uivqycíma um qvdilmv.
+xmzw vw um igcliv.
+mt uwvabzcw mabi tqjzm.
+
+G ma mt iaqovilw i bwzbczizum.
+
+Tia ttiuia kzmkmv g mabwg ibzixilw.
+Mabm qvnqmzvw ma ucg ozivlm g ma awtw xizi uí.
 """
 
     # ==================================================
-    # DESCIFRAR CESAR
+    # CESAR
     # ==================================================
 
     elif texto.startswith("/cesar"):
@@ -585,7 +633,7 @@ Mabw ma cv qvnqmzvw. Um aqmvbw bwzbczilw. Twa uivqycíma um qvdilmv, xmzw vw um 
         "bot": respuesta
     })
 
-    historial = historial[-50:]
+    historial = historial[-15:]
 
     db[usuario]["historial"] = historial
 
