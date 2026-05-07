@@ -440,7 +440,7 @@ L.U.O.
     # ==================================================
 
     elif (
-        "muerte y resurrecion" in texto
+        "Muerte y Resurreccion" in texto
         and db[usuario].get("dmg_activado", False)
     ):
 
